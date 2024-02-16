@@ -8,11 +8,21 @@ NOTE: If you are viewing this in a specification repository, kindly update the t
 
 This work is licensed under a Creative Commons Attribution 4.0 International License (CC-BY-4.0). For details, see the link:LICENSE[LICENSE] file.
 
+== Maintainers
+
+The list of maintainers of this specification is maintained in the link:MAINTAINERS.md[MAINTAINERS] file.
+
 == Contributors
 
 The list of contributors to this specification is maintained in the link:src/contributors.adoc[contributors] file.
 
 For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUTING] file.
+
+== Governance
+
+The goverance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE] file.
+
+Community information, including meeting (if held) and mailing lists are detailed in this file.
 
 == Building the Document
 
