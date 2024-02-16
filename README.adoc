@@ -10,7 +10,7 @@ This work is licensed under a Creative Commons Attribution 4.0 International Lic
 
 == Maintainers
 
-The list of maintainers of this specification is maintained in the link:MAINTAINERS.md[maintainers] file.
+The list of maintainers of this specification is maintained in the link:MAINTAINERS.md[MAINTAINERS] file.
 
 == Contributors
 
@@ -20,7 +20,7 @@ For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUT
 
 == Governance
 
-The goverance for this project is defined in the link:GOVERNANCE.md[governance] file.
+The goverance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE] file.
 
 Community information, including meeting (if held) and mailing lists are detailed in this file.
 
