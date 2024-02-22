@@ -74,16 +74,30 @@ To clean up the generated files, run:
 make clean
 ```
 
-
 == Enabling pre-commit checks locally
+
 The repository has some basic commit checks set up with https://pre-commit.com/[pre-commit] that will be enforced by the GitHub CI.
-To ensure these checks are also run in the local repository while making changes the following command can be run:
+To ensure these checks are also run in the local repository while making changes the following can be done:
+
+.Installing pre-commit tool
 [source,shell]
 ----
-pip3 install pre-commit && pre-commit install
+# Do once on your system
+pip3 install pre-commit
 ----
 
-When enabling additional checks https://pre-commit.com/#plugins[by editing .pre-commit-config.yaml], it is recommended to run to newly added check on all files in the repository. This can be done with the following command:
+.Installing pre-commit git hook in repo
+[source,shell]
+----
+# Do once in local repo
+pre-commit install
+----
+
+Rather than doing the above `pre-commit install` in every repo that uses it, you can do it https://pre-commit.com/#automatically-enabling-pre-commit-on-repositories[once on your system.]
+
+When enabling additional checks https://pre-commit.com/#plugins[by editing .pre-commit-config.yaml], it is recommended running the newly added check on all files in the repository. This can be done with the following command:
+
+.Running all pre-commit hooks on all files
 [source,shell]
 ----
 pre-commit run --all-files
