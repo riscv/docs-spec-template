@@ -20,7 +20,7 @@ For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUT
 
 == Governance
 
-The goverance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE] file.
+The governance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE] file.
 
 Community information, including meeting (if held) and mailing lists are detailed in this file.
 
