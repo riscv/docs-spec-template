@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version, e.g. X.Y.Z:'
+        description: "Release version, e.g. X.Y.Z:"
         required: true
         type: string
       revision_mark:
-        description: 'Set revision mark as Draft, Release or Stable:'
+        description: "Set revision mark as Draft, Release or Stable:"
         required: true
         type: choice
         options:

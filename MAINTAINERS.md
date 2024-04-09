@@ -1,4 +1,5 @@
 # Maintainers
+
 This project is maintained by the following people:
 
 - Bill Traynor ([wmat](https://github.com/wmat))
