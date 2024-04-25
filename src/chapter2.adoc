@@ -28,6 +28,7 @@ Seriously, multiple.
 
 === An example table
 
+.Nonsensical table
 [cols="^1,^1,^1,^1,^3,^3",stripes=even,options="header"]
 |===
 4+|Letters _and_ bits {set:cellbgcolor:green} 2+|A much longer area
