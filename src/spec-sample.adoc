@@ -19,9 +19,9 @@ Authors: Author 1, Author 2
 :experimental:
 :reproducible:
 //:WaveDromEditorApp: app/wavedrom-editor.app
-:imagesoutdir: ../build/images
-:srcdir: src
-:bibtex-file: {srcdir}/example.bib
+:imagesoutdir: images
+//:srcdir: src
+:bibtex-file: src/example.bib
 :bibtex-order: alphabetical
 :bibtex-style: apa
 :icons: font
