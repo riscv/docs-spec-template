@@ -18,9 +18,10 @@ DOCS := \
 DATE ?= $(shell date +%Y-%m-%d)
 VERSION ?= v0.0.0
 REVMARK ?= Draft
+DOCKER_IMG := riscvintl/riscv-docs-base-container-image:latest
 ifneq ($(SKIP_DOCKER),true)
 	DOCKER_CMD := docker run --rm -v ${PWD}:/build -w /build \
-	riscvintl/riscv-docs-base-container-image:latest \
+	${DOCKER_IMG} \
 	/bin/sh -c
 	DOCKER_QUOTE := "
 endif
@@ -47,6 +48,7 @@ OPTIONS := --trace \
            --failure-level=ERROR
 REQUIRES := --require=asciidoctor-bibtex \
             --require=asciidoctor-diagram \
+			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
 .PHONY: all build clean build-container build-no-container build-docs
@@ -82,6 +84,10 @@ build-no-container:
 	@echo "Starting build..."
 	$(MAKE) SKIP_DOCKER=true build-docs
 	@echo "Build completed successfully."
+
+# Update docker image to latest
+docker-pull-latest:
+	docker pull ${DOCKER_IMG}
 
 clean:
 	@echo "Cleaning up generated files..."

@@ -40,6 +40,18 @@ endif::[]
 :footnote:
 :xrefstyle: short
 
+[preface]
+== List of figures
+list-of::image[hide_empty_section=true, enhanced_rendering=true]
+
+[preface]
+== List of tables
+list-of::table[hide_empty_section=true, enhanced_rendering=true]
+
+[preface]
+== List of listings
+list-of::listing[hide_empty_section=true, enhanced_rendering=true]
+
 [WARNING]
 .This document is in the link:http://riscv.org/spec-state[Development state]
 ====
