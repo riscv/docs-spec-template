@@ -1,14 +1,12 @@
 = RISC-V Example Specification Document (Zexmpl)
 Authors: Author 1, Author 2
+include::../docs-resources/global-config.adoc[]
 :docgroup: RISC-V Task Group
 :description: RISC-V Example Specification Document (Zexmpl)
-:company: RISC-V.org
 :revdate: 1/2023
 :revnumber: 1.0
 :revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.
 :revinfo:
-:url-riscv: http://riscv.org
-:doctype: book
 :preface-title: Preamble
 :colophon:
 :appendix-caption: Appendix
