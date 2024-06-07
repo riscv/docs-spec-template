@@ -5,19 +5,16 @@ name: Create Specification Document
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Release version, e.g. X.Y.Z:'
-        required: true
-        type: string
       revision_mark:
         description: 'Set revision mark as Draft, Release or Stable:'
         required: true
         type: choice
         options:
-          - Draft
-          - Release
+          - Development
           - Stable
-        default: Draft
+          - Frozen
+          - Ratified
+        default: Development
       prerelease:
         description: Tag as a pre-release?
         required: false
@@ -44,6 +41,13 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Get next version
+        uses: reecetech/version-increment@2024.4.4
+        id: version
+        with:
+          scheme: semver
+          increment: patch
+
       # Pull the latest RISC-V Docs container image
       - name: Pull Container
         run: docker pull riscvintl/riscv-docs-base-container-image:latest
@@ -51,7 +55,7 @@ jobs:
       # Override VERSION and REVMARK for manual workflow dispatch
       - name: Update environment variables
         run: |
-          echo "VERSION=v${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          echo "VERSION=v${{ steps.version.outputs.version }}" >> "$GITHUB_ENV"
           echo "REVMARK=${{ github.event.inputs.revision_mark }}" >> "$GITHUB_ENV"
         if: github.event_name == 'workflow_dispatch'
 
@@ -72,8 +76,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ github.workspace }}/build/*.pdf
-          tag_name: v${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
           draft: ${{ github.event.inputs.draft }}
           prerelease: ${{ github.event.inputs.prerelease }}
         env:
