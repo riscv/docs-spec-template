@@ -46,9 +46,9 @@ By making a contribution to this project, I certify that:
 
 # DCO Sign-Off Methods
 The DCO necessitates the inclusion of a sign-off message in the following format for each commit within the pull request:
-
+```
 Signed-off-by: Stephano Cetola <scetola@linuxfoundation.org>
-
+```
 Please use your real name in the sign-off message.
 
 You can manually add the DCO text to your commit body or include either -s or --signoff in your standard Git commit commands. If you forget to incorporate the sign-off, you can also amend a previous commit with the sign-off by executing git commit --amend -s. If you have already pushed your changes to GitHub, you will need to force push your branch afterward using git push -f.
