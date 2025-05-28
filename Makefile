@@ -18,16 +18,17 @@ DOCS := \
 DATE ?= $(shell date +%Y-%m-%d)
 VERSION ?= v0.0.0
 REVMARK ?= Draft
-DOCKER_IMG := riscvintl/riscv-docs-base-container-image:latest
+DOCKER_IMG := docker.io/riscvintl/riscv-docs-base-container-image:latest
+DOCKER_BIN ?= docker
 ifneq ($(SKIP_DOCKER),true)
 	DOCKER_IS_PODMAN = \
-		$(shell ! docker -v 2>&1 | grep podman >/dev/null ; echo $$?)
+		$(shell ! ${DOCKER_BIN} -v 2>&1 | grep podman >/dev/null ; echo $$?)
 	ifeq "$(DOCKER_IS_PODMAN)" "1"
 		DOCKER_VOL_SUFFIX = :z
 	endif
 
 	DOCKER_CMD := \
-		docker run --rm \
+		${DOCKER_BIN} run --rm \
 			-v ${PWD}:/build${DOCKER_VOL_SUFFIX} \
 			-w /build \
 			${DOCKER_IMG} \
@@ -76,7 +77,7 @@ vpath %.adoc $(SRC_DIR)
 
 build:
 	@echo "Checking if Docker is available..."
-	@if command -v docker >/dev/null 2>&1 ; then \
+	@if command -v ${DOCKER_BIN} >/dev/null 2>&1 ; then \
 		echo "Docker is available, building inside Docker container..."; \
 		$(MAKE) build-container; \
 	else \
@@ -96,7 +97,7 @@ build-no-container:
 
 # Update docker image to latest
 docker-pull-latest:
-	docker pull ${DOCKER_IMG}
+	${DOCKER_BIN} pull ${DOCKER_IMG}
 
 clean:
 	@echo "Cleaning up generated files..."
