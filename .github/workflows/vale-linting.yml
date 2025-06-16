@@ -1,5 +1,5 @@
 name: Linting with Vale using Reusable Config
-on: 
+on:
    push:
       branches: [main]
    pull_request:
