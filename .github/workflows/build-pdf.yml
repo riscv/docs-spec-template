@@ -6,15 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       revision_mark:
-        description: 'Set revision mark as Draft, Release or Stable:'
+        description: 'Set revision mark to one of the choices:'
         required: true
         type: choice
         options:
-          - Development
+          - Draft
           - Stable
           - Frozen
           - Ratified
-        default: Development
+        default: Draft
       prerelease:
         description: Tag as a pre-release?
         required: false
