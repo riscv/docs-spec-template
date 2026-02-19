@@ -1,11 +1,14 @@
 = RISC-V Example Specification Document (Zexmpl)
 Authors: Author 1, Author 2
 include::../docs-resources/global-config.adoc[]
+ifndef::revnumber[:revnumber: v0.0.0]
+ifndef::revdate[:revdate: 1/2023]
+ifndef::phase[:phase: Draft and Development]
+ifndef::phase_display[:phase_display: {phase}]
+ifndef::phase_notice[:phase_notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.]
+ifndef::revremark[:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.]
 :docgroup: RISC-V Task Group
 :description: RISC-V Example Specification Document (Zexmpl)
-:revdate: 1/2023
-:revnumber: 1.0
-:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.
 :revinfo:
 :preface-title: Preamble
 :colophon:
@@ -51,11 +54,9 @@ list-of::table[hide_empty_section=true, enhanced_rendering=true]
 list-of::listing[hide_empty_section=true, enhanced_rendering=true]
 
 [WARNING]
-.This document is in the link:http://riscv.org/spec-state[Development state]
+.This document is in the link:http://riscv.org/spec-state[{phase_display} state]
 ====
-Expect potential changes. This draft specification is likely to evolve before
-it is accepted as a standard. Implementations based on this draft
-may not conform to the future standard.
+{phase_notice}
 ====
 
 [preface]

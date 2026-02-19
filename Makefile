@@ -16,8 +16,11 @@ DOCS := \
 	spec-sample.adoc
 
 DATE ?= $(shell date +%Y-%m-%d)
-VERSION ?= v0.0.0
-REVMARK ?= Draft
+VERSION ?= $(shell ./scripts/release-info.sh version)
+PHASE ?= $(shell ./scripts/release-info.sh phase "$(VERSION)")
+PHASE_DISPLAY ?= $(shell ./scripts/release-info.sh display "$(VERSION)")
+PHASE_NOTICE ?= $(shell ./scripts/release-info.sh notice "$(VERSION)")
+REVMARK ?= $(shell ./scripts/release-info.sh revremark "$(VERSION)")
 DOCKER_IMG := docker.io/riscvintl/riscv-docs-base-container-image:latest
 DOCKER_BIN ?= docker
 ifneq ($(SKIP_DOCKER),true)
@@ -49,8 +52,11 @@ OPTIONS := --trace \
            -a compress \
            -a mathematical-format=svg \
            -a revnumber=${VERSION} \
-           -a revremark=${REVMARK} \
+           -a revremark='${REVMARK}' \
            -a revdate=${DATE} \
+           -a phase='${PHASE}' \
+           -a phase_display='${PHASE_DISPLAY}' \
+           -a phase_notice='${PHASE_NOTICE}' \
            -a pdf-fontsdir=docs-resources/fonts \
            -a pdf-theme=docs-resources/themes/riscv-pdf.yml \
            $(XTRA_ADOC_OPTS) \

@@ -81,6 +81,71 @@ To clean up the generated files, run:
 make clean
 ```
 
+== Automated Versioning and Milestones
+
+The repository includes CI automation for specification revision metadata and state transitions.
+
+=== Trigger for automated version bumps
+
+The version bot runs on pushes to `main` only when files under `src/**` change (the main specification content).
+
+=== End-to-end flow
+
+1. A commit that changes `src/**` is pushed to `main`.
+2. `.github/workflows/version-bot.yml` finds the latest `v*` tag and creates the next patch tag (`vX.Y.Z`) for that commit.
+3. The new tag triggers `.github/workflows/build-pdf.yml`.
+4. The build uses the tag as `:revnumber:` and sets `:revdate:` to the build date.
+5. `scripts/release-info.sh` derives phase (`:phase:`), display state (`:phase_display:`), warning text (`:phase_notice:`), and `:revremark:` from the version milestone.
+6. Tag-triggered builds publish GitHub Releases with the generated PDF artifacts.
+
+Version increment policy:
+
+* Normal step: increment patch (`vA.B.C` -> `vA.B.(C+1)`).
+* Pre-1.0 rollover: for `v0.B.C` where `B < 99`, `v0.B.99` rolls to `v0.(B+1).0`.
+* `v0.99.x` continues patch-only until maintainers intentionally ratify with `v1.0.0`.
+
+=== Milestone boundaries
+
+* `v0.6.x`: `Developed`
+* `v0.8.x`: `Stable`
+* `v0.9.x`: `Frozen`
+* `v0.99.x`: `Ratification-Ready`
+* `v1.0.0`: `Ratified`
+
+=== Official vs prerelease policy
+
+Only these exact versions are published as official releases (`prerelease=false`):
+
+* `v0.6.0`
+* `v0.8.0`
+* `v0.9.0`
+* `v0.99.0`
+* `v1.0.0`
+
+All other versions are published as prereleases (`prerelease=true`).
+
+=== Milestone PR behavior
+
+When a new tag crosses into a different phase than the previous tag, the bot opens a PR that updates `SPEC_STATE.md` for maintainer review. This PR is the checkpoint for governance/process updates required by the new phase.
+
+=== Manual build overrides
+
+`workflow_dispatch` for `.github/workflows/build-pdf.yml` supports:
+
+* `release_version` to force an explicit version.
+* `target_phase` to force a milestone floor (`Developed` -> `v0.6.0`, `Stable` -> `v0.8.0`, and so on).
+* With `target_phase=auto-next` (default), manual runs use the latest existing tag if that tag is between milestone floors; otherwise they compute the next patch.
+
+=== Manual version jumps
+
+`workflow_dispatch` for `.github/workflows/version-bot.yml` supports forced jumps:
+
+* Set `target_phase=Frozen` to force the milestone floor (`v0.9.0`).
+* Set `target_phase=Stable` to force `v0.8.0`, `Ratification-Ready` to force `v0.99.0`, and so on.
+* Set `release_version` (for example `v0.9.0`) to force an explicit version; this takes precedence over `target_phase`.
+* Manual jumps must run on `main`.
+* By default, backward jumps are blocked; set `allow_non_monotonic=true` only when intentionally overriding this safety check.
+
 == Enabling pre-commit checks locally
 
 The repository has some basic commit checks set up with https://pre-commit.com/[pre-commit] that will be enforced by the GitHub CI.
