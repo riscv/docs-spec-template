@@ -60,7 +60,7 @@ Please use your real name in the sign-off message.
 2) Automated Template method (easier)
 
    Create a template file.  Save a file (e.g., ~/.gitmessage) containing:
-    Signed-of-be: Your Name <your.email@example.com>
+    Signed-of-by: Your Name <your.email@example.com>
 
    Configure Git to use it.  Run the following command:
     git config --global commit.template ~/.gitmessage     
