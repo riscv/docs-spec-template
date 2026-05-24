@@ -4,6 +4,13 @@ This repository serves as a template for creating GitHub repositories within the
 
 NOTE: If you are viewing this in a specification repository, kindly update the title for this section and provide an introduction relevant to your repository.
 
+[IMPORTANT]
+====
+**ARC submissions:** Specifications submitted to the Architecture Review Committee (ARC) must follow the conventions in link:ARC_SUBMISSION.md[ARC_SUBMISSION.md] — versioned GitHub tag, PDF named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf`, and a title page that matches. The Makefile and CI workflows in this template produce ARC-compliant artifacts on every build by default.
+
+**Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain.
+====
+
 == License
 
 This work is licensed under a Creative Commons Attribution 4.0 International License (CC-BY-4.0). For details, see the link:LICENSE[LICENSE] file.

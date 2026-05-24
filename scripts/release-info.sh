@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DEFAULT_VERSION="v0.0.0"
-DEFAULT_PHASE="Draft and Development"
+DEFAULT_PHASE="draft-and-development"
 SPEC_STATE_URL="http://riscv.org/spec-state"
 MAX_PATCH_BEFORE_MINOR_BUMP="${MAX_PATCH_BEFORE_MINOR_BUMP:-99}"
 
@@ -106,6 +106,22 @@ get_version() {
   echo "$DEFAULT_VERSION"
 }
 
+phase_display_for_phase() {
+  # Title-case display label rendered on the PDF title page and in the body
+  # NOTE admonition. The canonical (lowercase, hyphenated) ID stays usable for
+  # filenames, scripts, and machine-readable consumers; this is the human form.
+  case "$1" in
+    "draft-and-development") echo "Draft and Development" ;;
+    "development-complete")  echo "Development Complete"  ;;
+    "stabilized")            echo "Stabilized"            ;;
+    "frozen")                echo "Frozen"                ;;
+    "ratification-ready")    echo "Ratification-Ready"    ;;
+    "publication")           echo "Publication"           ;;
+    "ratified")              echo "Ratified"              ;;
+    *)                       echo "Draft"                 ;;
+  esac
+}
+
 phase_for_version() {
   local v="$1"
 
@@ -114,62 +130,72 @@ phase_for_version() {
     return 0
   fi
 
+  # Canonical RISC-V P&P milestone IDs. The version number encodes the
+  # milestone gate; see ARC_SUBMISSION.md.
   if version_ge "$v" "v1.0.0"; then
-    echo "Ratified"
+    echo "ratified"
+  elif version_ge "$v" "v0.99.1"; then
+    echo "publication"
   elif version_ge "$v" "v0.99.0"; then
-    echo "Ratification-Ready"
+    echo "ratification-ready"
   elif version_ge "$v" "v0.9.0"; then
-    echo "Frozen"
+    echo "frozen"
   elif version_ge "$v" "v0.8.0"; then
-    echo "Stable"
+    echo "stabilized"
   elif version_ge "$v" "v0.6.0"; then
-    echo "Developed"
+    echo "development-complete"
   else
-    echo "Draft and Development"
+    echo "draft-and-development"
   fi
 }
 
 milestone_for_phase() {
   case "$1" in
-    "Developed")
-      echo "v0.6.x Developed"
+    "development-complete")
+      echo "v0.6.x development-complete"
       ;;
-    "Stable")
-      echo "v0.8.x Stable"
+    "stabilized")
+      echo "v0.8.x stabilized"
       ;;
-    "Frozen")
-      echo "v0.9.x Frozen"
+    "frozen")
+      echo "v0.9.x frozen"
       ;;
-    "Ratification-Ready")
-      echo "v0.99.x Ratification-Ready"
+    "ratification-ready")
+      echo "v0.99.0 ratification-ready"
       ;;
-    "Ratified")
-      echo "v1.0.0 Ratified"
+    "publication")
+      echo "v0.99.x publication"
+      ;;
+    "ratified")
+      echo "v1.0.x ratified"
       ;;
     *)
-      echo "Draft and Development"
+      echo "draft-and-development"
       ;;
   esac
 }
 
 phase_floor_version() {
   case "$1" in
-    "Draft and Development")
+    "draft-and-development")
       echo "v0.0.1"
       ;;
-    "Developed")
+    "development-complete")
       echo "v0.6.0"
       ;;
-    "Stable")
+    "stabilized")
       echo "v0.8.0"
       ;;
-    "Frozen")
+    "frozen")
       echo "v0.9.0"
       ;;
-    "Ratification-Ready")
+    "ratification-ready")
       echo "v0.99.0"
       ;;
-    "Ratified")
+    "publication")
+      echo "v0.99.1"
+      ;;
+    "ratified")
       echo "v1.0.0"
       ;;
     *)
@@ -181,19 +207,22 @@ phase_floor_version() {
 
 notice_for_phase() {
   case "$1" in
-    "Draft and Development"|"Developed")
+    "draft-and-development"|"development-complete")
       echo "Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent."
       ;;
-    "Stable")
+    "stabilized")
       echo "Changes may still occur, but they should be limited in scope. The core structure and content are mostly settled, with only refinements or necessary adjustments expected. Any modifications should be carefully considered to maintain stability."
       ;;
-    "Frozen")
+    "frozen")
       echo "Changes are highly unlikely. A high threshold will be applied, and modifications will only be made in response to critical issues. Any other proposed changes should be addressed through a follow-on extension."
       ;;
-    "Ratification-Ready")
+    "ratification-ready")
       echo "The specification is preparing for ratification. Only critical, ratification-blocking issues should be considered for change."
       ;;
-    "Ratified")
+    "publication")
+      echo "The specification has cleared ratification-ready and is in the publication phase pending final ratification. Only publication-phase corrections are permitted."
+      ;;
+    "ratified")
       echo "No changes are allowed. Any necessary or desired modifications must be addressed through a follow-on extension. Ratified extensions are never revised."
       ;;
     *)
@@ -203,26 +232,13 @@ notice_for_phase() {
 }
 
 revremark_for_phase() {
-  case "$1" in
-    "Draft and Development"|"Developed")
-      echo "This document is under development. Expect potential changes. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-    "Stable")
-      echo "This document is in stable state. Only limited-scope changes are expected. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-    "Frozen")
-      echo "This document is in frozen state. Only critical fixes should be considered. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-    "Ratification-Ready")
-      echo "This document is ratification-ready. Changes are highly restricted pending ratification. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-    "Ratified")
-      echo "This document is ratified. No changes are allowed; use a follow-on extension for updates. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-    *)
-      echo "This document is under development. Visit ${SPEC_STATE_URL} for further details."
-      ;;
-  esac
+  # revremark is rendered immediately under "Version <revnumber>, <revdate>" on
+  # the asciidoctor-pdf title page. Emit only the title-case milestone label so
+  # the title page reads:
+  #   Version v1.0.0, 2026-05-24
+  #          Ratified
+  # The longer policy text moves into the body NOTE admonition (notice_for_phase).
+  phase_display_for_phase "$1"
 }
 
 phase_from_input() {
@@ -276,7 +292,7 @@ case "$command" in
     if [[ -z "$value" ]]; then
       value="$(get_version)"
     fi
-    phase_for_version "$value"
+    phase_display_for_phase "$(phase_for_version "$value")"
     ;;
   milestone)
     phase="$(phase_from_input "$value")"

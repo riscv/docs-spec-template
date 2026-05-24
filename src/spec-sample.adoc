@@ -3,10 +3,12 @@ Authors: Author 1, Author 2
 include::../docs-resources/global-config.adoc[]
 ifndef::revnumber[:revnumber: v0.0.0]
 ifndef::revdate[:revdate: 1/2023]
-ifndef::phase[:phase: Draft and Development]
+ifndef::phase[:phase: draft-and-development]
 ifndef::phase_display[:phase_display: {phase}]
 ifndef::phase_notice[:phase_notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.]
 ifndef::revremark[:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.]
+ifndef::milestone_id[:milestone_id: {phase}]
+ifndef::spec_short[:spec_short: spec-sample]
 :docgroup: RISC-V Task Group
 :description: RISC-V Example Specification Document (Zexmpl)
 :revinfo:
@@ -29,8 +31,9 @@ ifndef::revremark[:revremark: This document is under development. Expect potenti
 :lang: en
 :listing-caption: Listing
 :sectnums:
-:toc: left
+:toc: macro
 :toclevels: 4
+:toc-title: Table of Contents
 :source-highlighter: pygments
 ifdef::backend-pdf[]
 :source-highlighter: coderay
@@ -40,6 +43,14 @@ endif::[]
 :stem: latexmath
 :footnote:
 :xrefstyle: short
+
+// "Document State" preface is the phase Note rendered as page 2 of the PDF
+// (TOC is placed after it via the toc::[] macro below). See ARC_SUBMISSION.md §3.3.
+[preface]
+== Document State
+*Note:* {phase_notice}
+
+toc::[]
 
 [preface]
 == List of figures
@@ -52,12 +63,6 @@ list-of::table[hide_empty_section=true, enhanced_rendering=true]
 [preface]
 == List of listings
 list-of::listing[hide_empty_section=true, enhanced_rendering=true]
-
-[WARNING]
-.This document is in the link:http://riscv.org/spec-state[{phase_display} state]
-====
-{phase_notice}
-====
 
 [preface]
 == Copyright and license information

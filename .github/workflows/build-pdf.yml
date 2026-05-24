@@ -16,12 +16,13 @@ on:
         default: auto-next
         options:
           - auto-next
-          - Draft and Development
-          - Developed
-          - Stable
-          - Frozen
-          - Ratification-Ready
-          - Ratified
+          - draft-and-development
+          - development-complete
+          - stabilized
+          - frozen
+          - ratification-ready
+          - publication
+          - ratified
       draft:
         description: Create release as a draft?
         required: false
@@ -83,8 +84,10 @@ jobs:
       - name: Classify release type
         run: |
           set -euo pipefail
+          # Milestone-gate tags get a non-prerelease GitHub Release.
+          # v0.99.1 is the entry into publication, so it is also considered official.
           case "${VERSION}" in
-            v0.6.0|v0.8.0|v0.9.0|v0.99.0|v1.0.0)
+            v0.6.0|v0.8.0|v0.9.0|v0.99.0|v0.99.1|v1.0.0)
               echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
               ;;
             *)
@@ -92,9 +95,15 @@ jobs:
               ;;
           esac
 
-      # Build Files
+      # Build Files. VERSION and DATE are exported so the Makefile and
+      # release-info.sh produce ARC-compliant PDF names: <short>-v<ver>-<YYYYMMDD>.pdf
       - name: Build Files
-        run: make
+        run: |
+          set -euo pipefail
+          export VERSION="${VERSION}"
+          export DATE="$(date +%Y-%m-%d)"
+          echo "Building ${VERSION} (${DATE})"
+          make
 
       # Upload the built PDF files as a single artifact
       - name: Upload Build Artifacts
