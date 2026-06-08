@@ -36,7 +36,7 @@ ifneq ($(SKIP_DOCKER),true)
 	DOCKER_QUOTE := "
 endif
 
-SRC_DIR := src
+SRC_DIR := modules/ROOT/pages
 BUILD_DIR := build
 
 DOCS_PDF := $(DOCS:%.adoc=%.pdf)
@@ -61,7 +61,7 @@ REQUIRES := --require=asciidoctor-bibtex \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
-.PHONY: all build clean build-container build-no-container build-docs
+.PHONY: all build clean build-container build-no-container build-docs antora
 
 all: build
 
@@ -94,6 +94,18 @@ build-no-container:
 	@echo "Starting build..."
 	$(MAKE) SKIP_DOCKER=true build-docs
 	@echo "Build completed successfully."
+
+antora:
+	@echo "Building Antora site..."
+	@if command -v antora >/dev/null 2>&1; then \
+		antora antora-playbook.yml; \
+	elif command -v npx >/dev/null 2>&1; then \
+		npx antora antora-playbook.yml; \
+	else \
+		echo "Antora not found. Install with: npm install -g antora"; \
+		exit 1; \
+	fi
+	@echo "Antora site built to build/site/"
 
 # Update docker image to latest
 docker-pull-latest:

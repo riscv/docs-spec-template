@@ -1,2 +1,4 @@
 /build/*
 /images/*
+node_modules/
+.cache/
