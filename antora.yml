@@ -1,0 +1,12 @@
+# Antora Component Descriptor
+# https://docs.antora.org/antora/latest/component-version-descriptor/
+#
+# This file defines the Antora component for this RISC-V specification.
+# Rename `name` and `title` to match your specification.
+
+name: spec-sample
+title: RISC-V Example Specification (Zexmpl)
+version: ~
+
+nav:
+  - modules/ROOT/nav.adoc

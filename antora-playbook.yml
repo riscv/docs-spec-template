@@ -1,0 +1,24 @@
+# Antora Playbook
+# https://docs.antora.org/antora/latest/playbook/
+#
+# Used by the `make antora` target to build the HTML site locally.
+# For CI/CD, a separate playbook in your docs site repository will
+# typically reference this component repository by URL.
+
+site:
+  title: RISC-V Specification
+  url: https://docs.riscv.org
+  start_page: spec-sample::spec-sample.adoc
+
+content:
+  sources:
+    - url: .
+      branches: HEAD
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip
+    snapshot: true
+
+output:
+  dir: ./build/site

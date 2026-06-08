@@ -1,0 +1,10 @@
+// Navigation file for Antora
+// https://docs.antora.org/antora/latest/navigation/
+//
+// Update this file to reflect your specification's chapter structure.
+
+* xref:spec-sample.adoc[RISC-V Example Specification]
+** xref:intro.adoc[Introduction]
+** xref:chapter2.adoc[The Second Chapter]
+** xref:contributors.adoc[Contributors]
+** xref:bibliography.adoc[Bibliography]
