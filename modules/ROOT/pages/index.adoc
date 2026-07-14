@@ -1,0 +1,16 @@
+= RISC-V Example Specification (Zexmpl)
+
+This is the landing page for the online (Antora) rendering of this
+specification. Replace this text with a short abstract of your specification
+and links into the chapters listed in the navigation.
+
+The same chapter sources under `modules/ROOT/pages/` are assembled by
+`src/spec-sample.adoc` into the ARC-compliant submission PDF, so the site and
+the PDF never diverge.
+
+[NOTE]
+====
+This page is the Antora `start_page`. It is *not* included in the PDF; the PDF's
+front matter (title page, preamble, table of contents, and copyright) is
+produced by the assembler at `src/spec-sample.adoc`.
+====

@@ -3,9 +3,22 @@
 #
 # This file defines the Antora component for this RISC-V specification.
 # Rename `name` and `title` to match your specification.
+#
+# Keep this file minimal. When this repo is published as a content source in the
+# central playbook (github.com/riscv-admin/antora.riscv.org), that playbook
+# supplies the shared AsciiDoc attributes (doctype, icons, xrefstyle,
+# source-highlighter, kroki config, math entities, ...) and the extensions
+# (asciidoctor-kroki, mathjax, bibliography, section/nav numbering) uniformly to
+# every spec. Attributes set HERE would override the playbook and desync this
+# spec from the rest of the library -- notably `sectnums`, which the central
+# section-numbering extension controls per component. Put preview-only rendering
+# config in antora-playbook.yml (which mirrors production), not here.
 
 name: spec-sample
 title: RISC-V Example Specification (Zexmpl)
+# `version: ~` marks this component as unversioned. Phase 4 of the Antora
+# migration will stamp a real version here from scripts/release-info.sh so the
+# site version and the ARC submission PDF stay in lockstep.
 version: ~
 
 nav:

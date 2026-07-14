@@ -8,7 +8,7 @@
 site:
   title: RISC-V Specification
   url: https://docs.riscv.org
-  start_page: spec-sample::spec-sample.adoc
+  start_page: spec-sample::index.adoc
 
 content:
   sources:
@@ -17,7 +17,9 @@ content:
 
 ui:
   bundle:
-    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip
+    # RISC-V production UI, so local preview matches https://docs.riscv.org.
+    # This is the same bundle the central antora.riscv.org playbook uses.
+    url: https://github.com/riscv-admin/riscv-antora-only-ui/releases/download/latest/ui-bundle.zip
     snapshot: true
 
 output:

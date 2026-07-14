@@ -21,7 +21,7 @@ The list of maintainers of this specification is maintained in the link:MAINTAIN
 
 == Contributors
 
-The list of contributors to this specification is maintained in the link:src/contributors.adoc[contributors] file.
+The list of contributors to this specification is maintained in the link:modules/ROOT/pages/contributors.adoc[contributors] file.
 
 For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUTING] file.
 
