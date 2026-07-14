@@ -2,6 +2,33 @@
 
 As an open-source project, we appreciate and encourage community members to submit patches directly to the project. To maintain a well-organized development environment, we have established standards and methods for submitting changes. This document outlines the process for submitting patches to the project, ensuring that your contribution is swiftly incorporated into the codebase.
 
+# Version and State Automation
+
+Specification version/state metadata is managed by CI.
+
+- Pushes to `main` that modify `src/**` trigger the version bot workflow.
+- The bot creates the next patch tag (`vX.Y.Z`) from the latest existing `v*` tag.
+- Tag creation triggers the document build workflow, which sets `:revnumber:` and `:revdate:` during build.
+- Phase/state text (`:phase:`, `:phase_display:`, `:phase_notice:`, and `:revremark:`) is derived from the version via `scripts/release-info.sh`.
+- Pre-1.0 rollover rule: `v0.B.99` rolls to `v0.(B+1).0` for `B < 99` (for example `v0.0.99` -> `v0.1.0`).
+- Manual force-jump is available via `workflow_dispatch` in `.github/workflows/version-bot.yml`.
+- Use `target_phase` to jump to a milestone floor (for example `Frozen` -> `v0.9.0`).
+- Use `release_version` to set a specific version directly (this overrides `target_phase`).
+- Manual runs must target `main`.
+- Backward jumps are blocked by default; use `allow_non_monotonic=true` only when intentionally overriding this safety check.
+- Official release policy: only `v0.6.0`, `v0.8.0`, `v0.9.0`, `v0.99.0`, and `v1.0.0` are published as official (`prerelease=false`).
+- Every other version is published as a prerelease (`prerelease=true`).
+
+Milestone boundaries are:
+
+- `v0.6.x`: Developed
+- `v0.8.x`: Stable
+- `v0.9.x`: Frozen
+- `v0.99.x`: Ratification-Ready
+- `v1.0.0`: Ratified
+
+When a new version crosses a milestone boundary, CI opens a PR that updates `SPEC_STATE.md` for maintainer review.
+
 # Licensing
 
 Licensing is crucial for open-source projects, as it guarantees that the software remains available under the conditions specified by the author.

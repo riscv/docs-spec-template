@@ -15,10 +15,20 @@
 DOCS := \
 	spec-sample.adoc
 
+# Spec short name used in ARC-compliant PDF filenames.
+# Override in derived repos: e.g. SPEC_SHORT := Zifoo
+SPEC_SHORT ?= $(basename $(firstword $(DOCS)))
+
 DATE ?= $(shell date +%Y-%m-%d)
-VERSION ?= v0.0.0
-REVMARK ?= Draft
-DOCKER_IMG := ghcr.io/riscv/riscv-docs-base-container-image:latest
+DATE_STAMP := $(subst -,,$(DATE))
+VERSION ?= $(shell ./scripts/release-info.sh version)
+VERSION_NUM := $(patsubst v%,%,$(VERSION))
+PHASE ?= $(shell ./scripts/release-info.sh phase "$(VERSION)")
+PHASE_DISPLAY ?= $(shell ./scripts/release-info.sh display "$(VERSION)")
+PHASE_NOTICE ?= $(shell ./scripts/release-info.sh notice "$(VERSION)")
+REVMARK ?= $(shell ./scripts/release-info.sh revremark "$(VERSION)")
+MILESTONE_ID ?= $(PHASE)
+DOCKER_IMG := riscvintl/riscv-docs-base-container-image:latest
 DOCKER_BIN ?= docker
 ifneq ($(SKIP_DOCKER),true)
 	DOCKER_IS_PODMAN = \
@@ -49,8 +59,13 @@ OPTIONS := --trace \
            -a compress \
            -a mathematical-format=svg \
            -a revnumber=${VERSION} \
-           -a revremark=${REVMARK} \
+           -a revremark='${REVMARK}' \
            -a revdate=${DATE} \
+           -a phase='${PHASE}' \
+           -a phase_display='${PHASE_DISPLAY}' \
+           -a phase_notice='${PHASE_NOTICE}' \
+           -a milestone_id='${MILESTONE_ID}' \
+           -a spec_short='${SPEC_SHORT}' \
            -a pdf-fontsdir=docs-resources/fonts \
            -a pdf-theme=docs-resources/themes/riscv-pdf.yml \
            $(XTRA_ADOC_OPTS) \
@@ -61,11 +76,24 @@ REQUIRES := --require=asciidoctor-bibtex \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
-.PHONY: all build clean build-container build-no-container build-docs
+.PHONY: all build clean build-container build-no-container build-docs arc-rename
 
 all: build
 
-build-docs: $(DOCS_PDF) $(DOCS_HTML)
+# After AsciiDoctor produces build/<basename>.pdf, rename each PDF to the
+# ARC-compliant form <basename>-v<version>-<YYYYMMDD>.pdf so every build
+# (local or CI) emits a uniquely identifiable artifact.
+build-docs: $(DOCS_PDF) $(DOCS_HTML) arc-rename
+
+arc-rename: $(DOCS_PDF)
+	@for pdf in $(DOCS_PDF); do \
+		base=$$(basename $$pdf .pdf); \
+		dest="$$base-v$(VERSION_NUM)-$(DATE_STAMP).pdf"; \
+		if [ -f build/$$pdf ]; then \
+			mv build/$$pdf build/$$dest; \
+			echo "ARC submission PDF: build/$$dest"; \
+		fi; \
+	done
 
 vpath %.adoc $(SRC_DIR)
 

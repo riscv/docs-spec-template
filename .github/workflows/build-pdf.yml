@@ -1,25 +1,28 @@
 ---
 name: Create Specification Document
 
-# The workflow is triggered by pull request, push to main, and manual dispatch.
+# The workflow is triggered by pull request, version tags, and manual dispatch.
 on:
   workflow_dispatch:
     inputs:
-      revision_mark:
-        description: 'Set revision mark to one of the choices:'
-        required: true
-        type: choice
-        options:
-          - Draft
-          - Stable
-          - Frozen
-          - Ratified
-        default: Draft
-      prerelease:
-        description: Tag as a pre-release?
+      release_version:
+        description: 'Override version (e.g., v0.8.2). Milestone floors become official releases.'
         required: false
-        type: boolean
-        default: true
+        type: string
+      target_phase:
+        description: 'Pick a milestone floor (recommended for official releases).'
+        required: false
+        type: choice
+        default: auto-next
+        options:
+          - auto-next
+          - draft-and-development
+          - development-complete
+          - stabilized
+          - frozen
+          - ratification-ready
+          - publication
+          - ratified
       draft:
         description: Create release as a draft?
         required: false
@@ -27,8 +30,8 @@ on:
         default: false
   pull_request:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -39,29 +42,68 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           submodules: recursive
-
-      - name: Get next version
-        uses: reecetech/version-increment@2024.4.4
-        id: version
-        with:
-          scheme: semver
-          increment: patch
 
       # Pull the latest RISC-V Docs container image
       - name: Pull Container
         run: docker pull riscvintl/riscv-docs-base-container-image:latest
 
-      # Override VERSION and REVMARK for manual workflow dispatch
-      - name: Update environment variables
+      # Set VERSION for all builds (manual overrides optional).
+      # Tag pushes use the exact tag; PR builds compute next patch.
+      # Manual builds support explicit version, milestone floor, or auto behavior.
+      - name: Set build version
         run: |
-          echo "VERSION=v${{ steps.version.outputs.version }}" >> "$GITHUB_ENV"
-          echo "REVMARK=${{ github.event.inputs.revision_mark }}" >> "$GITHUB_ENV"
-        if: github.event_name == 'workflow_dispatch'
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.release_version }}" ]; then
+            version="${{ github.event.inputs.release_version }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
+            version="$(./scripts/release-info.sh phase-floor-version "${{ github.event.inputs.target_phase }}")"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            version="${{ github.ref_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            latest="$(./scripts/release-info.sh version)"
+            latest_phase="$(./scripts/release-info.sh phase "$latest")"
+            latest_floor="$(./scripts/release-info.sh phase-floor-version "$latest_phase")"
+            if [ "$latest" != "v0.0.0" ] && [ "$latest" != "$latest_floor" ]; then
+              # If current tag is between milestone floors, rebuild/re-release current latest tag.
+              version="$latest"
+            else
+              version="$(./scripts/release-info.sh next "$latest")"
+            fi
+          else
+            latest="$(./scripts/release-info.sh version)"
+            version="$(./scripts/release-info.sh next "$latest")"
+          fi
+          case "$version" in
+            v*) ;;
+            *) version="v$version" ;;
+          esac
+          echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      # Build Files
+      - name: Classify release type
+        run: |
+          set -euo pipefail
+          # Milestone-gate tags get a non-prerelease GitHub Release.
+          # v0.99.1 is the entry into publication, so it is also considered official.
+          case "${VERSION}" in
+            v0.6.0|v0.8.0|v0.9.0|v0.99.0|v0.99.1|v1.0.0)
+              echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+      # Build Files. VERSION and DATE are exported so the Makefile and
+      # release-info.sh produce ARC-compliant PDF names: <short>-v<ver>-<YYYYMMDD>.pdf
       - name: Build Files
-        run: make
+        run: |
+          set -euo pipefail
+          export VERSION="${VERSION}"
+          export DATE="$(date +%Y-%m-%d)"
+          echo "Building ${VERSION} (${DATE})"
+          make
 
       # Upload the built PDF files as a single artifact
       - name: Upload Build Artifacts
@@ -71,16 +113,54 @@ jobs:
           path: ${{ github.workspace }}/build/*.pdf
           retention-days: 30
 
-      # Create Release
-      - name: Create Release
+      # Create official release for version tag pushes
+      - name: Create Release (Tag Push, Official)
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ github.workspace }}/build/*.pdf
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
-          draft: ${{ github.event.inputs.draft }}
-          prerelease: ${{ github.event.inputs.prerelease }}
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GHTOKEN }}
-        if: github.event_name == 'workflow_dispatch'
-        # This condition ensures this step only runs for workflow_dispatch events.
+          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE == 'true'
+
+      # Create prerelease for non-milestone version tag pushes
+      - name: Create Release (Tag Push, Pre-release)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/build/*.pdf
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE != 'true'
+
+      # Create manual release for milestone versions
+      - name: Create Release (Manual, Official)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/build/*.pdf
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE == 'true'
+
+      # Create manual prerelease for non-milestone versions
+      - name: Create Release (Manual, Pre-release)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ github.workspace }}/build/*.pdf
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'

@@ -1,0 +1,170 @@
+---
+name: Version Bot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+  workflow_dispatch:
+    inputs:
+      target_phase:
+        description: 'Force-jump to the milestone floor version for this phase'
+        required: false
+        type: choice
+        default: auto-next
+        options:
+          - auto-next
+          - draft-and-development
+          - development-complete
+          - stabilized
+          - frozen
+          - ratification-ready
+          - publication
+          - ratified
+      release_version:
+        description: 'Explicit version override (e.g., v0.9.0). If set, target_phase is ignored.'
+        required: false
+        type: string
+      allow_non_monotonic:
+        description: 'Allow jumps lower than the latest existing version tag'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  tag-version:
+    runs-on: ubuntu-latest
+    outputs:
+      previous_version: ${{ steps.version.outputs.previous_version }}
+      next_version: ${{ steps.version.outputs.next_version }}
+      previous_phase: ${{ steps.version.outputs.previous_phase }}
+      next_phase: ${{ steps.version.outputs.next_phase }}
+      milestone_transition: ${{ steps.version.outputs.milestone_transition }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute and tag next version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET_PHASE: ${{ github.event.inputs.target_phase }}
+          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+          ALLOW_NON_MONOTONIC: ${{ github.event.inputs.allow_non_monotonic }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          latest="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
+          latest="${latest:-v0.0.0}"
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$REF_NAME" != "main" ]]; then
+              echo "Manual version jump must run against main." >&2
+              exit 1
+            fi
+
+            if [[ -n "${RELEASE_VERSION:-}" ]]; then
+              next="$(./scripts/release-info.sh normalize "$RELEASE_VERSION")"
+            elif [[ -n "${TARGET_PHASE:-}" && "$TARGET_PHASE" != "auto-next" ]]; then
+              next="$(./scripts/release-info.sh phase-floor-version "$TARGET_PHASE")"
+            else
+              next="$(./scripts/release-info.sh next "$latest")"
+            fi
+          else
+            existing="$(git tag --points-at HEAD --list 'v*' | head -n1 || true)"
+            if [[ -n "$existing" ]]; then
+              next="$existing"
+            else
+              next="$(./scripts/release-info.sh next "$latest")"
+            fi
+          fi
+
+          if [[ "${ALLOW_NON_MONOTONIC:-false}" != "true" ]]; then
+            highest="$(printf '%s\n%s\n' "${latest#v}" "${next#v}" | sort -V | tail -n1)"
+            if [[ "$highest" != "${next#v}" ]]; then
+              echo "Refusing non-monotonic jump from $latest to $next. Set allow_non_monotonic=true to override." >&2
+              exit 1
+            fi
+          fi
+
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            tag_sha="$(git rev-list -n1 "$next")"
+            head_sha="$(git rev-parse HEAD)"
+            if [[ "$tag_sha" != "$head_sha" ]]; then
+              echo "Tag $next already exists on another commit ($tag_sha)." >&2
+              exit 1
+            fi
+            echo "Tag $next already exists on HEAD; reusing."
+          else
+            git config user.name "riscv-gitbot"
+            git config user.email "actions@users.noreply.github.com"
+            git tag -a "$next" -m "Automated version tag for ${GITHUB_SHA}"
+            git push origin "$next"
+          fi
+
+          prev_phase="$(./scripts/release-info.sh phase "$latest")"
+          next_phase="$(./scripts/release-info.sh phase "$next")"
+
+          milestone_transition=false
+          if [[ "$prev_phase" != "$next_phase" ]]; then
+            milestone_transition=true
+          fi
+
+          echo "previous_version=$latest" >> "$GITHUB_OUTPUT"
+          echo "next_version=$next" >> "$GITHUB_OUTPUT"
+          echo "previous_phase=$prev_phase" >> "$GITHUB_OUTPUT"
+          echo "next_phase=$next_phase" >> "$GITHUB_OUTPUT"
+          echo "milestone_transition=$milestone_transition" >> "$GITHUB_OUTPUT"
+
+  milestone-pr:
+    runs-on: ubuntu-latest
+    needs: tag-version
+    if: needs.tag-version.outputs.milestone_transition == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update specification state
+        run: |
+          set -euo pipefail
+          ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
+
+      - name: Create milestone review PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}"
+          branch: "gitbot/milestone-${{ needs.tag-version.outputs.next_version }}"
+          delete-branch: true
+          title: "Milestone reached: ${{ needs.tag-version.outputs.next_phase }} (${{ needs.tag-version.outputs.next_version }})"
+          body: |
+            This PR was opened automatically after a version milestone transition.
+
+            Previous version/state: `${{ needs.tag-version.outputs.previous_version }}` / `${{ needs.tag-version.outputs.previous_phase }}`
+            New version/state: `${{ needs.tag-version.outputs.next_version }}` / `${{ needs.tag-version.outputs.next_phase }}`
+
+            Please review and apply any governance/process updates required for this state transition.
+
+            Suggested maintainer checklist:
+            - Confirm the state transition is intentional.
+            - Confirm change-control policy for the new state is enforced.
+            - Confirm communication to contributors and implementers.
+          labels: |
+            milestone
+            spec-state
+          add-paths: |
+            SPEC_STATE.md

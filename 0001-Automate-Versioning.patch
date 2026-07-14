@@ -1,0 +1,989 @@
+From 47bb11127d3715dbe3e3efeb354510da8bee353f Mon Sep 17 00:00:00 2001
+From: Rafael Sene <rafael@riscv.org>
+Date: Thu, 19 Feb 2026 12:53:46 -0300
+Subject: [PATCH] Automate Versioning
+
+Signed-off-by: Rafael Sene <rafael@riscv.org>
+---
+ .github/workflows/build-pdf.yml   | 139 ++++++++++----
+ .github/workflows/version-bot.yml | 169 ++++++++++++++++
+ CONTRIBUTING.md                   |  27 +++
+ Makefile                          |  12 +-
+ README.adoc                       |  65 +++++++
+ SPEC_STATE.md                     |  40 ++++
+ scripts/release-info.sh           | 307 ++++++++++++++++++++++++++++++
+ scripts/update-spec-state.sh      |  56 ++++++
+ src/spec-sample.adoc              |  15 +-
+ 9 files changed, 786 insertions(+), 44 deletions(-)
+ create mode 100644 .github/workflows/version-bot.yml
+ create mode 100644 SPEC_STATE.md
+ create mode 100755 scripts/release-info.sh
+ create mode 100755 scripts/update-spec-state.sh
+
+diff --git a/.github/workflows/build-pdf.yml b/.github/workflows/build-pdf.yml
+index 3264da7..6881a17 100644
+--- a/.github/workflows/build-pdf.yml
++++ b/.github/workflows/build-pdf.yml
+@@ -1,25 +1,27 @@
+ ---
+ name: Create Specification Document
+ 
+-# The workflow is triggered by pull request, push to main, and manual dispatch.
++# The workflow is triggered by pull request, version tags, and manual dispatch.
+ on:
+   workflow_dispatch:
+     inputs:
+-      revision_mark:
+-        description: 'Set revision mark to one of the choices:'
+-        required: true
++      release_version:
++        description: 'Override version (e.g., v0.8.2). Milestone floors become official releases.'
++        required: false
++        type: string
++      target_phase:
++        description: 'Pick a milestone floor (recommended for official releases).'
++        required: false
+         type: choice
++        default: auto-next
+         options:
+-          - Draft
++          - auto-next
++          - Draft and Development
++          - Developed
+           - Stable
+           - Frozen
++          - Ratification-Ready
+           - Ratified
+-        default: Draft
+-      prerelease:
+-        description: Tag as a pre-release?
+-        required: false
+-        type: boolean
+-        default: true
+       draft:
+         description: Create release as a draft?
+         required: false
+@@ -27,8 +29,8 @@ on:
+         default: false
+   pull_request:
+   push:
+-    branches:
+-      - main
++    tags:
++      - 'v*'
+ 
+ jobs:
+   build:
+@@ -39,25 +41,56 @@ jobs:
+       - name: Checkout repository
+         uses: actions/checkout@v4
+         with:
++          fetch-depth: 0
+           submodules: recursive
+ 
+-      - name: Get next version
+-        uses: reecetech/version-increment@2024.4.4
+-        id: version
+-        with:
+-          scheme: semver
+-          increment: patch
+-
+       # Pull the latest RISC-V Docs container image
+       - name: Pull Container
+         run: docker pull riscvintl/riscv-docs-base-container-image:latest
+ 
+-      # Override VERSION and REVMARK for manual workflow dispatch
+-      - name: Update environment variables
++      # Set VERSION for all builds (manual overrides optional).
++      # Tag pushes use the exact tag; PR builds compute next patch.
++      # Manual builds support explicit version, milestone floor, or auto behavior.
++      - name: Set build version
+         run: |
+-          echo "VERSION=v${{ steps.version.outputs.version }}" >> "$GITHUB_ENV"
+-          echo "REVMARK=${{ github.event.inputs.revision_mark }}" >> "$GITHUB_ENV"
+-        if: github.event_name == 'workflow_dispatch'
++          set -euo pipefail
++          if [ -n "${{ github.event.inputs.release_version }}" ]; then
++            version="${{ github.event.inputs.release_version }}"
++          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
++            version="$(./scripts/release-info.sh phase-floor-version "${{ github.event.inputs.target_phase }}")"
++          elif [ "${{ github.ref_type }}" = "tag" ]; then
++            version="${{ github.ref_name }}"
++          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
++            latest="$(./scripts/release-info.sh version)"
++            latest_phase="$(./scripts/release-info.sh phase "$latest")"
++            latest_floor="$(./scripts/release-info.sh phase-floor-version "$latest_phase")"
++            if [ "$latest" != "v0.0.0" ] && [ "$latest" != "$latest_floor" ]; then
++              # If current tag is between milestone floors, rebuild/re-release current latest tag.
++              version="$latest"
++            else
++              version="$(./scripts/release-info.sh next "$latest")"
++            fi
++          else
++            latest="$(./scripts/release-info.sh version)"
++            version="$(./scripts/release-info.sh next "$latest")"
++          fi
++          case "$version" in
++            v*) ;;
++            *) version="v$version" ;;
++          esac
++          echo "VERSION=$version" >> "$GITHUB_ENV"
++
++      - name: Classify release type
++        run: |
++          set -euo pipefail
++          case "${VERSION}" in
++            v0.6.0|v0.8.0|v0.9.0|v0.99.0|v1.0.0)
++              echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
++              ;;
++            *)
++              echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
++              ;;
++          esac
+ 
+       # Build Files
+       - name: Build Files
+@@ -71,16 +104,54 @@ jobs:
+           path: ${{ github.workspace }}/build/*.pdf
+           retention-days: 30
+ 
+-      # Create Release
+-      - name: Create Release
++      # Create official release for version tag pushes
++      - name: Create Release (Tag Push, Official)
+         uses: softprops/action-gh-release@v1
+         with:
+           files: ${{ github.workspace }}/build/*.pdf
+-          tag_name: v${{ steps.version.outputs.version }}
+-          name: Release ${{ steps.version.outputs.version }}
+-          draft: ${{ github.event.inputs.draft }}
+-          prerelease: ${{ github.event.inputs.prerelease }}
++          tag_name: ${{ env.VERSION }}
++          name: Release ${{ env.VERSION }}
++          draft: false
++          prerelease: false
+         env:
+-          GITHUB_TOKEN: ${{ secrets.GHTOKEN }}
+-        if: github.event_name == 'workflow_dispatch'
+-        # This condition ensures this step only runs for workflow_dispatch events.
++          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
++        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE == 'true'
++
++      # Create prerelease for non-milestone version tag pushes
++      - name: Create Release (Tag Push, Pre-release)
++        uses: softprops/action-gh-release@v1
++        with:
++          files: ${{ github.workspace }}/build/*.pdf
++          tag_name: ${{ env.VERSION }}
++          name: Release ${{ env.VERSION }}
++          draft: false
++          prerelease: true
++        env:
++          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
++        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE != 'true'
++
++      # Create manual release for milestone versions
++      - name: Create Release (Manual, Official)
++        uses: softprops/action-gh-release@v1
++        with:
++          files: ${{ github.workspace }}/build/*.pdf
++          tag_name: ${{ env.VERSION }}
++          name: Release ${{ env.VERSION }}
++          draft: ${{ github.event.inputs.draft }}
++          prerelease: false
++        env:
++          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
++        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE == 'true'
++
++      # Create manual prerelease for non-milestone versions
++      - name: Create Release (Manual, Pre-release)
++        uses: softprops/action-gh-release@v1
++        with:
++          files: ${{ github.workspace }}/build/*.pdf
++          tag_name: ${{ env.VERSION }}
++          name: Release ${{ env.VERSION }}
++          draft: ${{ github.event.inputs.draft }}
++          prerelease: true
++        env:
++          GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
++        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'
+diff --git a/.github/workflows/version-bot.yml b/.github/workflows/version-bot.yml
+new file mode 100644
+index 0000000..da23cf4
+--- /dev/null
++++ b/.github/workflows/version-bot.yml
+@@ -0,0 +1,169 @@
++---
++name: Version Bot
++
++on:
++  push:
++    branches:
++      - main
++    paths:
++      - 'src/**'
++  workflow_dispatch:
++    inputs:
++      target_phase:
++        description: 'Force-jump to the milestone floor version for this phase'
++        required: false
++        type: choice
++        default: auto-next
++        options:
++          - auto-next
++          - Draft and Development
++          - Developed
++          - Stable
++          - Frozen
++          - Ratification-Ready
++          - Ratified
++      release_version:
++        description: 'Explicit version override (e.g., v0.9.0). If set, target_phase is ignored.'
++        required: false
++        type: string
++      allow_non_monotonic:
++        description: 'Allow jumps lower than the latest existing version tag'
++        required: false
++        type: boolean
++        default: false
++
++permissions:
++  contents: write
++  pull-requests: write
++
++jobs:
++  tag-version:
++    runs-on: ubuntu-latest
++    outputs:
++      previous_version: ${{ steps.version.outputs.previous_version }}
++      next_version: ${{ steps.version.outputs.next_version }}
++      previous_phase: ${{ steps.version.outputs.previous_phase }}
++      next_phase: ${{ steps.version.outputs.next_phase }}
++      milestone_transition: ${{ steps.version.outputs.milestone_transition }}
++
++    steps:
++      - name: Checkout repository
++        uses: actions/checkout@v4
++        with:
++          fetch-depth: 0
++
++      - name: Compute and tag next version
++        id: version
++        env:
++          EVENT_NAME: ${{ github.event_name }}
++          TARGET_PHASE: ${{ github.event.inputs.target_phase }}
++          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
++          ALLOW_NON_MONOTONIC: ${{ github.event.inputs.allow_non_monotonic }}
++          REF_NAME: ${{ github.ref_name }}
++        run: |
++          set -euo pipefail
++
++          git fetch --tags --force
++
++          latest="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
++          latest="${latest:-v0.0.0}"
++
++          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
++            if [[ "$REF_NAME" != "main" ]]; then
++              echo "Manual version jump must run against main." >&2
++              exit 1
++            fi
++
++            if [[ -n "${RELEASE_VERSION:-}" ]]; then
++              next="$(./scripts/release-info.sh normalize "$RELEASE_VERSION")"
++            elif [[ -n "${TARGET_PHASE:-}" && "$TARGET_PHASE" != "auto-next" ]]; then
++              next="$(./scripts/release-info.sh phase-floor-version "$TARGET_PHASE")"
++            else
++              next="$(./scripts/release-info.sh next "$latest")"
++            fi
++          else
++            existing="$(git tag --points-at HEAD --list 'v*' | head -n1 || true)"
++            if [[ -n "$existing" ]]; then
++              next="$existing"
++            else
++              next="$(./scripts/release-info.sh next "$latest")"
++            fi
++          fi
++
++          if [[ "${ALLOW_NON_MONOTONIC:-false}" != "true" ]]; then
++            highest="$(printf '%s\n%s\n' "${latest#v}" "${next#v}" | sort -V | tail -n1)"
++            if [[ "$highest" != "${next#v}" ]]; then
++              echo "Refusing non-monotonic jump from $latest to $next. Set allow_non_monotonic=true to override." >&2
++              exit 1
++            fi
++          fi
++
++          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
++            tag_sha="$(git rev-list -n1 "$next")"
++            head_sha="$(git rev-parse HEAD)"
++            if [[ "$tag_sha" != "$head_sha" ]]; then
++              echo "Tag $next already exists on another commit ($tag_sha)." >&2
++              exit 1
++            fi
++            echo "Tag $next already exists on HEAD; reusing."
++          else
++            git config user.name "riscv-gitbot"
++            git config user.email "actions@users.noreply.github.com"
++            git tag -a "$next" -m "Automated version tag for ${GITHUB_SHA}"
++            git push origin "$next"
++          fi
++
++          prev_phase="$(./scripts/release-info.sh phase "$latest")"
++          next_phase="$(./scripts/release-info.sh phase "$next")"
++
++          milestone_transition=false
++          if [[ "$prev_phase" != "$next_phase" ]]; then
++            milestone_transition=true
++          fi
++
++          echo "previous_version=$latest" >> "$GITHUB_OUTPUT"
++          echo "next_version=$next" >> "$GITHUB_OUTPUT"
++          echo "previous_phase=$prev_phase" >> "$GITHUB_OUTPUT"
++          echo "next_phase=$next_phase" >> "$GITHUB_OUTPUT"
++          echo "milestone_transition=$milestone_transition" >> "$GITHUB_OUTPUT"
++
++  milestone-pr:
++    runs-on: ubuntu-latest
++    needs: tag-version
++    if: needs.tag-version.outputs.milestone_transition == 'true'
++
++    steps:
++      - name: Checkout repository
++        uses: actions/checkout@v4
++        with:
++          fetch-depth: 0
++
++      - name: Update specification state
++        run: |
++          set -euo pipefail
++          ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
++
++      - name: Create milestone review PR
++        uses: peter-evans/create-pull-request@v6
++        with:
++          commit-message: "docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}"
++          branch: "gitbot/milestone-${{ needs.tag-version.outputs.next_version }}"
++          delete-branch: true
++          title: "Milestone reached: ${{ needs.tag-version.outputs.next_phase }} (${{ needs.tag-version.outputs.next_version }})"
++          body: |
++            This PR was opened automatically after a version milestone transition.
++
++            Previous version/state: `${{ needs.tag-version.outputs.previous_version }}` / `${{ needs.tag-version.outputs.previous_phase }}`
++            New version/state: `${{ needs.tag-version.outputs.next_version }}` / `${{ needs.tag-version.outputs.next_phase }}`
++
++            Please review and apply any governance/process updates required for this state transition.
++
++            Suggested maintainer checklist:
++            - Confirm the state transition is intentional.
++            - Confirm change-control policy for the new state is enforced.
++            - Confirm communication to contributors and implementers.
++          labels: |
++            milestone
++            spec-state
++          add-paths: |
++            SPEC_STATE.md
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index c925ae5..96c5124 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -2,6 +2,33 @@
+ 
+ As an open-source project, we appreciate and encourage community members to submit patches directly to the project. To maintain a well-organized development environment, we have established standards and methods for submitting changes. This document outlines the process for submitting patches to the project, ensuring that your contribution is swiftly incorporated into the codebase.
+ 
++# Version and State Automation
++
++Specification version/state metadata is managed by CI.
++
++- Pushes to `main` that modify `src/**` trigger the version bot workflow.
++- The bot creates the next patch tag (`vX.Y.Z`) from the latest existing `v*` tag.
++- Tag creation triggers the document build workflow, which sets `:revnumber:` and `:revdate:` during build.
++- Phase/state text (`:phase:`, `:phase_display:`, `:phase_notice:`, and `:revremark:`) is derived from the version via `scripts/release-info.sh`.
++- Pre-1.0 rollover rule: `v0.B.99` rolls to `v0.(B+1).0` for `B < 99` (for example `v0.0.99` -> `v0.1.0`).
++- Manual force-jump is available via `workflow_dispatch` in `.github/workflows/version-bot.yml`.
++- Use `target_phase` to jump to a milestone floor (for example `Frozen` -> `v0.9.0`).
++- Use `release_version` to set a specific version directly (this overrides `target_phase`).
++- Manual runs must target `main`.
++- Backward jumps are blocked by default; use `allow_non_monotonic=true` only when intentionally overriding this safety check.
++- Official release policy: only `v0.6.0`, `v0.8.0`, `v0.9.0`, `v0.99.0`, and `v1.0.0` are published as official (`prerelease=false`).
++- Every other version is published as a prerelease (`prerelease=true`).
++
++Milestone boundaries are:
++
++- `v0.6.x`: Developed
++- `v0.8.x`: Stable
++- `v0.9.x`: Frozen
++- `v0.99.x`: Ratification-Ready
++- `v1.0.0`: Ratified
++
++When a new version crosses a milestone boundary, CI opens a PR that updates `SPEC_STATE.md` for maintainer review.
++
+ # Licensing
+ 
+ Licensing is crucial for open-source projects, as it guarantees that the software remains available under the conditions specified by the author.
+diff --git a/Makefile b/Makefile
+index f6f174f..f9b82f2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -16,8 +16,11 @@ DOCS := \
+ 	spec-sample.adoc
+ 
+ DATE ?= $(shell date +%Y-%m-%d)
+-VERSION ?= v0.0.0
+-REVMARK ?= Draft
++VERSION ?= $(shell ./scripts/release-info.sh version)
++PHASE ?= $(shell ./scripts/release-info.sh phase "$(VERSION)")
++PHASE_DISPLAY ?= $(shell ./scripts/release-info.sh display "$(VERSION)")
++PHASE_NOTICE ?= $(shell ./scripts/release-info.sh notice "$(VERSION)")
++REVMARK ?= $(shell ./scripts/release-info.sh revremark "$(VERSION)")
+ DOCKER_IMG := docker.io/riscvintl/riscv-docs-base-container-image:latest
+ DOCKER_BIN ?= docker
+ ifneq ($(SKIP_DOCKER),true)
+@@ -49,8 +52,11 @@ OPTIONS := --trace \
+            -a compress \
+            -a mathematical-format=svg \
+            -a revnumber=${VERSION} \
+-           -a revremark=${REVMARK} \
++           -a revremark='${REVMARK}' \
+            -a revdate=${DATE} \
++           -a phase='${PHASE}' \
++           -a phase_display='${PHASE_DISPLAY}' \
++           -a phase_notice='${PHASE_NOTICE}' \
+            -a pdf-fontsdir=docs-resources/fonts \
+            -a pdf-theme=docs-resources/themes/riscv-pdf.yml \
+            $(XTRA_ADOC_OPTS) \
+diff --git a/README.adoc b/README.adoc
+index d89c32d..710da91 100644
+--- a/README.adoc
++++ b/README.adoc
+@@ -81,6 +81,71 @@ To clean up the generated files, run:
+ make clean
+ ```
+ 
++== Automated Versioning and Milestones
++
++The repository includes CI automation for specification revision metadata and state transitions.
++
++=== Trigger for automated version bumps
++
++The version bot runs on pushes to `main` only when files under `src/**` change (the main specification content).
++
++=== End-to-end flow
++
++1. A commit that changes `src/**` is pushed to `main`.
++2. `.github/workflows/version-bot.yml` finds the latest `v*` tag and creates the next patch tag (`vX.Y.Z`) for that commit.
++3. The new tag triggers `.github/workflows/build-pdf.yml`.
++4. The build uses the tag as `:revnumber:` and sets `:revdate:` to the build date.
++5. `scripts/release-info.sh` derives phase (`:phase:`), display state (`:phase_display:`), warning text (`:phase_notice:`), and `:revremark:` from the version milestone.
++6. Tag-triggered builds publish GitHub Releases with the generated PDF artifacts.
++
++Version increment policy:
++
++* Normal step: increment patch (`vA.B.C` -> `vA.B.(C+1)`).
++* Pre-1.0 rollover: for `v0.B.C` where `B < 99`, `v0.B.99` rolls to `v0.(B+1).0`.
++* `v0.99.x` continues patch-only until maintainers intentionally ratify with `v1.0.0`.
++
++=== Milestone boundaries
++
++* `v0.6.x`: `Developed`
++* `v0.8.x`: `Stable`
++* `v0.9.x`: `Frozen`
++* `v0.99.x`: `Ratification-Ready`
++* `v1.0.0`: `Ratified`
++
++=== Official vs prerelease policy
++
++Only these exact versions are published as official releases (`prerelease=false`):
++
++* `v0.6.0`
++* `v0.8.0`
++* `v0.9.0`
++* `v0.99.0`
++* `v1.0.0`
++
++All other versions are published as prereleases (`prerelease=true`).
++
++=== Milestone PR behavior
++
++When a new tag crosses into a different phase than the previous tag, the bot opens a PR that updates `SPEC_STATE.md` for maintainer review. This PR is the checkpoint for governance/process updates required by the new phase.
++
++=== Manual build overrides
++
++`workflow_dispatch` for `.github/workflows/build-pdf.yml` supports:
++
++* `release_version` to force an explicit version.
++* `target_phase` to force a milestone floor (`Developed` -> `v0.6.0`, `Stable` -> `v0.8.0`, and so on).
++* With `target_phase=auto-next` (default), manual runs use the latest existing tag if that tag is between milestone floors; otherwise they compute the next patch.
++
++=== Manual version jumps
++
++`workflow_dispatch` for `.github/workflows/version-bot.yml` supports forced jumps:
++
++* Set `target_phase=Frozen` to force the milestone floor (`v0.9.0`).
++* Set `target_phase=Stable` to force `v0.8.0`, `Ratification-Ready` to force `v0.99.0`, and so on.
++* Set `release_version` (for example `v0.9.0`) to force an explicit version; this takes precedence over `target_phase`.
++* Manual jumps must run on `main`.
++* By default, backward jumps are blocked; set `allow_non_monotonic=true` only when intentionally overriding this safety check.
++
+ == Enabling pre-commit checks locally
+ 
+ The repository has some basic commit checks set up with https://pre-commit.com/[pre-commit] that will be enforced by the GitHub CI.
+diff --git a/SPEC_STATE.md b/SPEC_STATE.md
+new file mode 100644
+index 0000000..20efaaa
+--- /dev/null
++++ b/SPEC_STATE.md
+@@ -0,0 +1,40 @@
++# Specification State
++
++Current milestone: Draft and Development
++Current state: Draft and Development
++Current version: v0.0.0
++Last updated: 2026-02-19
++
++## Milestone Targets
++
++- v0.6.x Developed
++- v0.8.x Stable
++- v0.9.x Frozen
++- v0.99.x Ratification-Ready
++- v1.0.0 Ratified
++
++## State Definitions
++
++### Draft and Development
++
++Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.
++
++### Developed
++
++Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.
++
++### Stable
++
++Changes may still occur, but they should be limited in scope. The core structure and content are mostly settled, with only refinements or necessary adjustments expected. Any modifications should be carefully considered to maintain stability.
++
++### Frozen
++
++Changes are highly unlikely. A high threshold will be applied, and modifications will only be made in response to critical issues. Any other proposed changes should be addressed through a follow-on extension.
++
++### Ratification-Ready
++
++The specification is preparing for ratification. Only critical, ratification-blocking issues should be considered for change.
++
++### Ratified
++
++No changes are allowed. Any necessary or desired modifications must be addressed through a follow-on extension. Ratified extensions are never revised.
+diff --git a/scripts/release-info.sh b/scripts/release-info.sh
+new file mode 100755
+index 0000000..ffd3338
+--- /dev/null
++++ b/scripts/release-info.sh
+@@ -0,0 +1,307 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++DEFAULT_VERSION="v0.0.0"
++DEFAULT_PHASE="Draft and Development"
++SPEC_STATE_URL="http://riscv.org/spec-state"
++MAX_PATCH_BEFORE_MINOR_BUMP="${MAX_PATCH_BEFORE_MINOR_BUMP:-99}"
++
++usage() {
++  cat <<'USAGE'
++Usage: scripts/release-info.sh [version|normalize|next|phase|phase-floor-version|display|milestone|notice|revremark|all] [value]
++
++Outputs release metadata derived from VERSION/RELEASE_VERSION, git tags, or defaults.
++USAGE
++}
++
++normalize_version() {
++  local v="$1"
++  v="${v##*/}"
++  if [[ "$v" != v* ]]; then
++    v="v${v}"
++  fi
++  echo "$v"
++}
++
++base_version() {
++  local v="$1"
++  v="${v#v}"
++  v="${v%%+*}"
++  v="${v%%-*}"
++  echo "$v"
++}
++
++version_valid() {
++  local v
++  v="$(base_version "$1")"
++  [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]
++}
++
++parse_version() {
++  local v major minor patch
++  v="$(base_version "$1")"
++  IFS='.' read -r major minor patch <<<"$v"
++  patch="${patch:-0}"
++  echo "$major" "$minor" "$patch"
++}
++
++version_ge() {
++  local a1 b1 c1 a2 b2 c2
++  read -r a1 b1 c1 <<<"$(parse_version "$1")"
++  read -r a2 b2 c2 <<<"$(parse_version "$2")"
++  if (( a1 > a2 )); then
++    return 0
++  fi
++  if (( a1 == a2 && b1 > b2 )); then
++    return 0
++  fi
++  if (( a1 == a2 && b1 == b2 && c1 >= c2 )); then
++    return 0
++  fi
++  return 1
++}
++
++next_version() {
++  local major minor patch
++  read -r major minor patch <<<"$(parse_version "$1")"
++
++  # Progress pre-1.0 development by rolling patch to the next minor at .99.
++  if (( major == 0 && minor < 99 && patch >= MAX_PATCH_BEFORE_MINOR_BUMP )); then
++    minor=$((minor + 1))
++    patch=0
++  else
++    patch=$((patch + 1))
++  fi
++
++  printf 'v%s.%s.%s\n' "$major" "$minor" "$patch"
++}
++
++get_version() {
++  local v=""
++
++  if [[ -n "${VERSION:-}" ]]; then
++    v="$VERSION"
++  elif [[ -n "${RELEASE_VERSION:-}" ]]; then
++    v="$RELEASE_VERSION"
++  elif [[ -n "${GITHUB_REF_NAME:-}" ]]; then
++    if version_valid "$GITHUB_REF_NAME"; then
++      v="$GITHUB_REF_NAME"
++    fi
++  elif [[ -n "${GITHUB_REF:-}" ]]; then
++    local ref="${GITHUB_REF##*/}"
++    if version_valid "$ref"; then
++      v="$ref"
++    fi
++  fi
++
++  if [[ -z "$v" ]] && command -v git >/dev/null 2>&1; then
++    v="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
++  fi
++
++  if [[ -n "$v" ]] && version_valid "$v"; then
++    normalize_version "$v"
++    return 0
++  fi
++
++  echo "$DEFAULT_VERSION"
++}
++
++phase_for_version() {
++  local v="$1"
++
++  if ! version_valid "$v"; then
++    echo "$DEFAULT_PHASE"
++    return 0
++  fi
++
++  if version_ge "$v" "v1.0.0"; then
++    echo "Ratified"
++  elif version_ge "$v" "v0.99.0"; then
++    echo "Ratification-Ready"
++  elif version_ge "$v" "v0.9.0"; then
++    echo "Frozen"
++  elif version_ge "$v" "v0.8.0"; then
++    echo "Stable"
++  elif version_ge "$v" "v0.6.0"; then
++    echo "Developed"
++  else
++    echo "Draft and Development"
++  fi
++}
++
++milestone_for_phase() {
++  case "$1" in
++    "Developed")
++      echo "v0.6.x Developed"
++      ;;
++    "Stable")
++      echo "v0.8.x Stable"
++      ;;
++    "Frozen")
++      echo "v0.9.x Frozen"
++      ;;
++    "Ratification-Ready")
++      echo "v0.99.x Ratification-Ready"
++      ;;
++    "Ratified")
++      echo "v1.0.0 Ratified"
++      ;;
++    *)
++      echo "Draft and Development"
++      ;;
++  esac
++}
++
++phase_floor_version() {
++  case "$1" in
++    "Draft and Development")
++      echo "v0.0.1"
++      ;;
++    "Developed")
++      echo "v0.6.0"
++      ;;
++    "Stable")
++      echo "v0.8.0"
++      ;;
++    "Frozen")
++      echo "v0.9.0"
++      ;;
++    "Ratification-Ready")
++      echo "v0.99.0"
++      ;;
++    "Ratified")
++      echo "v1.0.0"
++      ;;
++    *)
++      echo "Unknown phase '$1'" >&2
++      return 2
++      ;;
++  esac
++}
++
++notice_for_phase() {
++  case "$1" in
++    "Draft and Development"|"Developed")
++      echo "Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent."
++      ;;
++    "Stable")
++      echo "Changes may still occur, but they should be limited in scope. The core structure and content are mostly settled, with only refinements or necessary adjustments expected. Any modifications should be carefully considered to maintain stability."
++      ;;
++    "Frozen")
++      echo "Changes are highly unlikely. A high threshold will be applied, and modifications will only be made in response to critical issues. Any other proposed changes should be addressed through a follow-on extension."
++      ;;
++    "Ratification-Ready")
++      echo "The specification is preparing for ratification. Only critical, ratification-blocking issues should be considered for change."
++      ;;
++    "Ratified")
++      echo "No changes are allowed. Any necessary or desired modifications must be addressed through a follow-on extension. Ratified extensions are never revised."
++      ;;
++    *)
++      echo "Assume everything is subject to change until a formal milestone is reached."
++      ;;
++  esac
++}
++
++revremark_for_phase() {
++  case "$1" in
++    "Draft and Development"|"Developed")
++      echo "This document is under development. Expect potential changes. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++    "Stable")
++      echo "This document is in stable state. Only limited-scope changes are expected. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++    "Frozen")
++      echo "This document is in frozen state. Only critical fixes should be considered. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++    "Ratification-Ready")
++      echo "This document is ratification-ready. Changes are highly restricted pending ratification. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++    "Ratified")
++      echo "This document is ratified. No changes are allowed; use a follow-on extension for updates. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++    *)
++      echo "This document is under development. Visit ${SPEC_STATE_URL} for further details."
++      ;;
++  esac
++}
++
++phase_from_input() {
++  local input="${1:-}"
++  if [[ -z "$input" ]]; then
++    phase_for_version "$(get_version)"
++  elif version_valid "$input"; then
++    phase_for_version "$input"
++  else
++    echo "$input"
++  fi
++}
++
++command="${1:-all}"
++value="${2:-}"
++
++case "$command" in
++  version)
++    get_version
++    ;;
++  normalize)
++    if [[ -z "$value" ]]; then
++      echo "normalize requires a version value" >&2
++      exit 2
++    fi
++    if ! version_valid "$value"; then
++      echo "invalid version: $value" >&2
++      exit 2
++    fi
++    normalize_version "$value"
++    ;;
++  next)
++    if [[ -z "$value" ]]; then
++      value="$(get_version)"
++    fi
++    next_version "$value"
++    ;;
++  phase)
++    if [[ -z "$value" ]]; then
++      value="$(get_version)"
++    fi
++    phase_for_version "$value"
++    ;;
++  phase-floor-version)
++    if [[ -z "$value" ]]; then
++      value="$(phase_for_version "$(get_version)")"
++    fi
++    phase_floor_version "$value"
++    ;;
++  display)
++    if [[ -z "$value" ]]; then
++      value="$(get_version)"
++    fi
++    phase_for_version "$value"
++    ;;
++  milestone)
++    phase="$(phase_from_input "$value")"
++    milestone_for_phase "$phase"
++    ;;
++  notice)
++    phase="$(phase_from_input "$value")"
++    notice_for_phase "$phase"
++    ;;
++  revremark)
++    phase="$(phase_from_input "$value")"
++    revremark_for_phase "$phase"
++    ;;
++  all|"")
++    version="$(get_version)"
++    phase="$(phase_for_version "$version")"
++    display="$phase"
++    milestone="$(milestone_for_phase "$phase")"
++    notice="$(notice_for_phase "$phase")"
++    revremark="$(revremark_for_phase "$phase")"
++    printf 'VERSION=%s\nPHASE=%s\nPHASE_DISPLAY=%s\nMILESTONE=%s\nPHASE_NOTICE=%s\nREVMARK=%s\n' \
++      "$version" "$phase" "$display" "$milestone" "$notice" "$revremark"
++    ;;
++  *)
++    usage
++    exit 2
++    ;;
++esac
+diff --git a/scripts/update-spec-state.sh b/scripts/update-spec-state.sh
+new file mode 100755
+index 0000000..e76c1f7
+--- /dev/null
++++ b/scripts/update-spec-state.sh
+@@ -0,0 +1,56 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++if [[ $# -lt 1 ]]; then
++  echo "Usage: scripts/update-spec-state.sh <version> [date]" >&2
++  exit 2
++fi
++
++version="$1"
++updated_on="${2:-$(date +%Y-%m-%d)}"
++
++phase="$(./scripts/release-info.sh phase "$version")"
++milestone="$(./scripts/release-info.sh milestone "$version")"
++
++cat > SPEC_STATE.md <<STATE
++# Specification State
++
++Current milestone: ${milestone}
++Current state: ${phase}
++Current version: ${version}
++Last updated: ${updated_on}
++
++## Milestone Targets
++
++- v0.6.x Developed
++- v0.8.x Stable
++- v0.9.x Frozen
++- v0.99.x Ratification-Ready
++- v1.0.0 Ratified
++
++## State Definitions
++
++### Draft and Development
++
++Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.
++
++### Developed
++
++Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.
++
++### Stable
++
++Changes may still occur, but they should be limited in scope. The core structure and content are mostly settled, with only refinements or necessary adjustments expected. Any modifications should be carefully considered to maintain stability.
++
++### Frozen
++
++Changes are highly unlikely. A high threshold will be applied, and modifications will only be made in response to critical issues. Any other proposed changes should be addressed through a follow-on extension.
++
++### Ratification-Ready
++
++The specification is preparing for ratification. Only critical, ratification-blocking issues should be considered for change.
++
++### Ratified
++
++No changes are allowed. Any necessary or desired modifications must be addressed through a follow-on extension. Ratified extensions are never revised.
++STATE
+diff --git a/src/spec-sample.adoc b/src/spec-sample.adoc
+index d2a978d..b99b2e7 100644
+--- a/src/spec-sample.adoc
++++ b/src/spec-sample.adoc
+@@ -1,11 +1,14 @@
+ = RISC-V Example Specification Document (Zexmpl)
+ Authors: Author 1, Author 2
+ include::../docs-resources/global-config.adoc[]
++ifndef::revnumber[:revnumber: v0.0.0]
++ifndef::revdate[:revdate: 1/2023]
++ifndef::phase[:phase: Draft and Development]
++ifndef::phase_display[:phase_display: {phase}]
++ifndef::phase_notice[:phase_notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.]
++ifndef::revremark[:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.]
+ :docgroup: RISC-V Task Group
+ :description: RISC-V Example Specification Document (Zexmpl)
+-:revdate: 1/2023
+-:revnumber: 1.0
+-:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.
+ :revinfo:
+ :preface-title: Preamble
+ :colophon:
+@@ -51,11 +54,9 @@ list-of::table[hide_empty_section=true, enhanced_rendering=true]
+ list-of::listing[hide_empty_section=true, enhanced_rendering=true]
+ 
+ [WARNING]
+-.This document is in the link:http://riscv.org/spec-state[Development state]
++.This document is in the link:http://riscv.org/spec-state[{phase_display} state]
+ ====
+-Expect potential changes. This draft specification is likely to evolve before
+-it is accepted as a standard. Implementations based on this draft
+-may not conform to the future standard.
++{phase_notice}
+ ====
+ 
+ [preface]
+-- 
+2.50.1 (Apple Git-155)
+
