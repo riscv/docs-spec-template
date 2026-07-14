@@ -24,7 +24,7 @@ ifndef::spec_short[:spec_short: spec-sample]
 //:WaveDromEditorApp: app/wavedrom-editor.app
 :imagesoutdir: images
 //:srcdir: src
-:bibtex-file: modules/ROOT/examples/example.bib
+:bibtex-file: modules/ROOT/resources/riscv-spec.bib
 :bibtex-order: alphabetical
 :bibtex-style: apa
 :icons: font

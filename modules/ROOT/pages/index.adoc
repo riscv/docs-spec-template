@@ -1,16 +1,40 @@
-= RISC-V Example Specification (Zexmpl)
+// Antora landing / cover page for this specification.
+//
+// This page is the Antora start_page and is SITE-ONLY: it is NOT part of the
+// ARC submission PDF, whose title page, preamble, TOC, and copyright are built
+// by the assembler at src/spec-sample.adoc. Content here is Antora-exclusive,
+// so there is no dual-source concern -- edit it freely.
+//
+// The cover treatment below (logo, title, version, phase banner) mirrors the
+// ratified RISC-V specs (e.g. riscv-server-platform) so this spec renders with a
+// proper cover on the site. `common::risc-v_logo.svg` is a shared asset supplied
+// by the central playbook; it resolves on the site build. (In a bare local
+// `antora antora-playbook.yml` preview the `common` component is absent, so the
+// logo will not resolve until it is wired -- see Phase 5.)
 
-This is the landing page for the online (Antora) rendering of this
-specification. Replace this text with a short abstract of your specification
-and links into the chapters listed in the navigation.
+[.space-below]
+image::common::risc-v_logo.svg[id="riscvlogo"xs,alt="RISCV"]
 
-The same chapter sources under `modules/ROOT/pages/` are assembled by
-`src/spec-sample.adoc` into the ARC-compliant submission PDF, so the site and
-the PDF never diverge.
 
+
+[.space-below]
+== RISC-V Example Specification (Zexmpl)
+
+Version 0.0.0, Draft
+
+// Phase/status banner. Update the state name, the wording, and (when ratified)
+// the block style to match this spec's ARC phase. Phase 4 of the Antora
+// migration will stamp the version and phase here from scripts/release-info.sh
+// so the site and the ARC submission PDF stay in lockstep.
 [NOTE]
+.This document is in the link:http://riscv.org/spec-state[Development state]
 ====
-This page is the Antora `start_page`. It is *not* included in the PDF; the PDF's
-front matter (title page, preamble, table of contents, and copyright) is
-produced by the assembler at `src/spec-sample.adoc`.
+Assume everything is subject to change. At this stage, ideas, structures, and
+content are still evolving. Feedback and iteration are encouraged as nothing is
+final, and adjustments may be frequent.
 ====
+
+Replace this text with a short abstract of your specification and links into the
+chapters listed in the navigation. The same chapter sources under
+`modules/ROOT/pages/` are assembled by `src/spec-sample.adoc` into the
+ARC-compliant submission PDF, so the site and the PDF never diverge.

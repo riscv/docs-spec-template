@@ -27,3 +27,9 @@ nav:
 asciidoc:
   attributes:
     page-group: isa
+    # Path (Antora resource ID) to this spec's BibTeX database, consumed by the
+    # central playbook's ASAM bibliography extension to resolve `cite:` macros and
+    # render `bibliography::[]`. Without it the extension no-ops and those appear
+    # as raw text. This is a spec-SPECIFIC resource the central playbook cannot
+    # supply, so it legitimately belongs here (not a rendering-attribute override).
+    asamBibliography: 'ROOT:resources/riscv-spec.bib'
