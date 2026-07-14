@@ -15,6 +15,54 @@ content:
     - url: .
       branches: HEAD
 
+# Shared AsciiDoc rendering attributes, MIRRORED from the central playbook's
+# `asciidoc.attributes` block (github.com/riscv-admin/antora.riscv.org). These
+# live here, in the LOCAL preview playbook -- NOT in antora.yml, where they would
+# override the central playbook and desync this spec (see ANTORA.md, design rule
+# #2). Purpose: make `antora antora-playbook.yml` preview render like production.
+# Keep in sync with the central block when it changes. The extensions that some
+# of these configure (asciidoctor-kroki, @djencks/asciidoctor-mathjax, the ASAM
+# bibliography extension) are added in Phase 5; the attributes are inert until
+# then, so wavedrom/math/cite still won't render in bare local preview yet.
+asciidoc:
+  attributes:
+    doctype: book
+    experimental: ''
+    icons: font
+    idprefix: ''
+    idseparator: '-'
+    page-pagination: ''
+    # Use "Table"/"Figure" short names in cross references
+    xrefstyle: short
+    source-highlighter: highlight.js
+    toclevels: 5
+    outlinelevels: 5
+    part-signifier: Chapter
+    setanchors:
+    # Kroki (diagrams/wavedrom) -- consumed once the extension lands in Phase 5.
+    kroki-server-url: http://localhost:9870
+    kroki-fetch-diagram: true
+    kroki-cache-path: ./.cache/kroki
+    incexample: example$
+    incimage: ../images/
+    fiximages: '../images'
+    # Math, comparison operators, and special characters
+    le: '&#8804;'
+    ge: '&#8805;'
+    ne: '&#8800;'
+    approx: '&#8776;'
+    inf: '&#8734;'
+    circ: ○
+    bullet: ∙
+    times: ×
+    pm: '±'
+    prime: '′'
+    check: '✓'
+    rightarrow: '→'
+    interpunct: '·'
+    vertical-ellipsis: '⋮'
+    ellipsis: '…'
+
 ui:
   bundle:
     # RISC-V production UI, so local preview matches https://docs.riscv.org.
