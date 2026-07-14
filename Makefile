@@ -28,7 +28,7 @@ PHASE_DISPLAY ?= $(shell ./scripts/release-info.sh display "$(VERSION)")
 PHASE_NOTICE ?= $(shell ./scripts/release-info.sh notice "$(VERSION)")
 REVMARK ?= $(shell ./scripts/release-info.sh revremark "$(VERSION)")
 MILESTONE_ID ?= $(PHASE)
-DOCKER_IMG := docker.io/riscvintl/ghcr.io/riscv/riscv-docs-base-container-image:latest
+DOCKER_IMG := riscvintl/riscv-docs-base-container-image:latest
 DOCKER_BIN ?= docker
 ifneq ($(SKIP_DOCKER),true)
 	DOCKER_IS_PODMAN = \
