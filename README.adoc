@@ -8,7 +8,7 @@ NOTE: If you are viewing this in a specification repository, kindly update the t
 ====
 **ARC submissions:** Specifications submitted to the Architecture Review Committee (ARC) must follow the conventions in link:ARC_SUBMISSION.md[ARC_SUBMISSION.md] — versioned GitHub tag, PDF named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf`, and a title page that matches. The Makefile and CI workflows in this template produce ARC-compliant artifacts on every build by default.
 
-**Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain.
+**Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain — both the ARC submission PDF and the Antora site, which share one source tree. See link:ANTORA.md[ANTORA.md] for how that dual build works and why.
 ====
 
 == License
