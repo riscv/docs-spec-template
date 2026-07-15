@@ -5,3 +5,7 @@
 # Local Antora preview tooling (see package.json / ANTORA.md Phase 5)
 /node_modules/
 /.cache/
+# Generated diagram/math artifacts (kroki fetch + asciidoctor-mathematical);
+# regenerated every build, never committed.
+_images/
+/src/images/

@@ -1,0 +1,78 @@
+---
+name: Validate Antora content source
+
+# This repo is ONE content source. The real site is assembled elsewhere by the
+# central playbook (github.com/riscv-admin/antora.riscv.org) from 20+ sources --
+# this job does NOT build or deploy that site.
+#
+# What it does: build THIS component in isolation via the local
+# antora-playbook.yml (same extensions/attributes as production) as a PR gate, so
+# broken AsciiDoc, unresolved intra-component xrefs/includes, or extension errors
+# fail here instead of stalling the shared central library build once the branch
+# is consumed.
+#
+# What it CANNOT check: cross-component references (e.g. `common::risc-v_logo.svg`
+# or xrefs into other specs) resolve only in the central multi-source build, so
+# they are expected to be unresolved here and are exception-listed below.
+#
+# Not wired here: the Phase 4 version stamp automation (make stamp-antora +
+# commit antora.yml on release) -- see ANTORA.md Phase 6 (deferred pending the
+# settled site-tracked branch and a CI push token).
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    # Local Kroki server for asciidoctor-kroki (wavedrom etc.). Matches the
+    # kroki-server-url: http://localhost:9870 attribute in antora-playbook.yml.
+    services:
+      kroki:
+        image: yuzutech/kroki:latest
+        ports:
+          - 9870:8000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install preview tooling
+        run: npm ci
+
+      - name: Build component (isolated)
+        run: |
+          set +e
+          npx antora --fetch --log-format=json antora-playbook.yml 2>&1 | tee antora-build.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Antora exited with status $status"
+            exit "$status"
+          fi
+
+          # Antora logs unresolved xrefs/includes/images at error level without
+          # failing the build. Treat those as failures -- EXCEPT cross-component
+          # references that only resolve in the central multi-source build.
+          unexpected="$(grep -E '"level":"(error|fatal)"' antora-build.log \
+            | grep -v 'common::risc-v_logo.svg' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::Antora reported unexpected errors:"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "Component builds clean (ignoring expected cross-component refs)."
