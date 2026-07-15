@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Override version (e.g., v0.8.2). Milestone floors become official releases.'
+        description: Override version (e.g., v0.8.2). Milestone floors become official releases.
         required: false
         type: string
       target_phase:
-        description: 'Pick a milestone floor (recommended for official releases).'
+        description: Pick a milestone floor (recommended for official releases).
         required: false
         type: choice
         default: auto-next
@@ -31,7 +31,7 @@ on:
   pull_request:
   push:
     tags:
-      - 'v*'
+      - v*
 
 jobs:
   build:
