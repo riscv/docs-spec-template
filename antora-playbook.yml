@@ -1,3 +1,4 @@
+---
 # Antora Playbook
 # https://docs.antora.org/antora/latest/playbook/
 #
@@ -53,7 +54,7 @@ asciidoc:
     kroki-cache-path: ./.cache/kroki
     incexample: example$
     incimage: ../images/
-    fiximages: '../images'
+    fiximages: ../images
     # Math, comparison operators, and special characters
     le: '&#8804;'
     ge: '&#8805;'
@@ -63,13 +64,13 @@ asciidoc:
     circ: ○
     bullet: ∙
     times: ×
-    pm: '±'
-    prime: '′'
-    check: '✓'
-    rightarrow: '→'
-    interpunct: '·'
-    vertical-ellipsis: '⋮'
-    ellipsis: '…'
+    pm: ±
+    prime: ′
+    check: ✓
+    rightarrow: →
+    interpunct: ·
+    vertical-ellipsis: ⋮
+    ellipsis: …
 
 ui:
   bundle:

@@ -6,11 +6,11 @@ on:
     branches:
       - main
     paths:
-      - 'src/**'
+      - src/**
   workflow_dispatch:
     inputs:
       target_phase:
-        description: 'Force-jump to the milestone floor version for this phase'
+        description: Force-jump to the milestone floor version for this phase
         required: false
         type: choice
         default: auto-next
@@ -24,11 +24,11 @@ on:
           - publication
           - ratified
       release_version:
-        description: 'Explicit version override (e.g., v0.9.0). If set, target_phase is ignored.'
+        description: Explicit version override (e.g., v0.9.0). If set, target_phase is ignored.
         required: false
         type: string
       allow_non_monotonic:
-        description: 'Allow jumps lower than the latest existing version tag'
+        description: Allow jumps lower than the latest existing version tag
         required: false
         type: boolean
         default: false
@@ -147,10 +147,10 @@ jobs:
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}"
-          branch: "gitbot/milestone-${{ needs.tag-version.outputs.next_version }}"
+          commit-message: 'docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}'
+          branch: gitbot/milestone-${{ needs.tag-version.outputs.next_version }}
           delete-branch: true
-          title: "Milestone reached: ${{ needs.tag-version.outputs.next_phase }} (${{ needs.tag-version.outputs.next_version }})"
+          title: 'Milestone reached: ${{ needs.tag-version.outputs.next_phase }} (${{ needs.tag-version.outputs.next_version }})'
           body: |
             This PR was opened automatically after a version milestone transition.
 
