@@ -106,6 +106,11 @@ npm run preview            # builds the site into build/site/
 To check bibliography output, build with `make` (the PDF/HTML use the `asciidoctor-bibtex` toolchain) or view the specification on the central RISC-V documentation site, where the ASAM extension renders them.
 ====
 
+[IMPORTANT]
+====
+**Don't forget site numbering rules.** Chapter/section numbering on the published site is applied by the RISC-V central playbook, keyed to the **line numbers of the `xref` entries in `modules/ROOT/nav.adoc`** — not by anything in this repo. When you finalize your chapter structure (or add/remove/reorder pages in `nav.adoc`), you must add or update the matching entry in the central playbook's `numbering_rules`, or your spec will render with wrong or missing chapter numbers. See the *Section numbering* section of link:ANTORA.md[ANTORA.md] for the exact rule and format.
+====
+
 == Automated Versioning and Milestones
 
 The repository includes CI automation for specification revision metadata and state transitions.

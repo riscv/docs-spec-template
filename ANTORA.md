@@ -87,6 +87,50 @@ first — Antora fetches from GitHub, not the worktree):
 
 No `nav:` key needed (declared in `antora.yml`). Renders at `/spec-sample/`.
 
+## Section numbering
+
+Chapter/section numbering is applied by the **central playbook**, not this repo.
+The `nav_numbering` and `section_numbering` extensions read a per-component rule
+from the playbook's `numbering_rules` anchor. That is *why* `antora.yml` sets no
+`sectnums` (design rule under "Production model"): the central extension owns it,
+and a local override would desync this spec. A generic template can't ship a rule
+— chapter counts differ per spec — but the bundled example spec can.
+
+The important subtlety: a rule's `chapters: {start, end}` are **line numbers in
+`modules/ROOT/nav.adoc`**, not chapter numbers. The extension scans nav lines;
+each line in `[start, end]` matching `^*+ xref:…[` becomes a chapter, numbered
+sequentially from 1. For this example spec the nav xrefs currently sit at:
+
+| `nav.adoc` line | page | numbering |
+|---|---|---|
+| 12 | `index.adoc` | landing/cover — not a chapter |
+| 13 | `intro.adoc` | **Chapter 1** |
+| 14 | `chapter2.adoc` | **Chapter 2** |
+| 15 | `contributors.adoc` | unnumbered (front matter) |
+| 16 | `bibliography.adoc` | unnumbered (`[bibliography]`) |
+
+so the entry to add to `numbering_rules` in the central playbook
+(`riscv-admin/antora-dev.riscv.org`, `antora/antora-playbook.yml`) is:
+
+```yaml
+- component: spec-sample
+  module: ROOT
+  branches: ['antora-setup']     # match the content-source branch/tag
+  chapters: {start: 13, end: 14} # nav lines 13–14 = intro, chapter2
+```
+
+One entry covers both extensions (they share the `&numbering_rules` anchor).
+`section_numbering` ignores `appendices`, so the bibliography stays unnumbered,
+matching the PDF (where contributors is a `[preface]` and the bibliography is
+unnumbered back matter).
+
+> ⚠ **This rule is line-coupled to `nav.adoc`.** Adding, removing, or reordering
+> entries — or editing the nav header comments — shifts the line numbers, so the
+> central rule must be updated in lockstep or site numbering silently drifts.
+> (Adding the warning comment to `nav.adoc` already moved these from lines 7–8 to
+> 13–14.) Also update `branches:`/`tags:` to match wherever the spec is consumed
+> (dev = `antora-setup`; later `main` or release tags).
+
 ## Phased plan
 
 - [x] **Phase 1 — Dual-source layout.** Chapters → `modules/ROOT/pages/`;
