@@ -37,6 +37,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Expose the resolved version/date so the stamp-site-version job can keep
+    # antora.yml (the HTML site version) in exact lockstep with this PDF build.
+    outputs:
+      version: ${{ steps.set_build_version.outputs.version }}
+      date: ${{ steps.set_build_version.outputs.date }}
+
     steps:
       # Checkout the repository
       - name: Checkout repository
@@ -53,6 +59,7 @@ jobs:
       # Tag pushes use the exact tag; PR builds compute next patch.
       # Manual builds support explicit version, milestone floor, or auto behavior.
       - name: Set build version
+        id: set_build_version
         run: |
           set -euo pipefail
           if [ -n "${{ github.event.inputs.release_version }}" ]; then
@@ -79,7 +86,13 @@ jobs:
             v*) ;;
             *) version="v$version" ;;
           esac
+          # Resolve the build date ONCE so the PDF and the Antora version stamp
+          # share it exactly (no midnight-boundary drift between separate steps).
+          date="$(date +%Y-%m-%d)"
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "DATE=$date" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
 
       - name: Classify release type
         run: |
@@ -101,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           export VERSION="${VERSION}"
-          export DATE="$(date +%Y-%m-%d)"
+          export DATE="${DATE}"
           echo "Building ${VERSION} (${DATE})"
           make
 
@@ -164,3 +177,64 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
         if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'
+
+  # Keep the Antora HTML site version in EXACT lockstep with the PDF this run just
+  # built: stamp the SAME resolved version/date into antora.yml on main, so the
+  # central playbook publishes the version the PDF carries. The PDF and this stamp
+  # come from one build job (same source, same VERSION/DATE) -- they cannot drift.
+  #
+  # Runs only for real releases: not PR previews (nothing to publish) and not
+  # drafts (not public yet). Never moves main's version backwards, so rebuilding
+  # an older tag will not regress the site.
+  #
+  # NOTE: a freshly seeded repo's `main` is unprotected, so the token below can
+  # push directly. If a downstream repo later protects `main`, either grant this
+  # bot push/bypass on `main` or convert this to a PR (peter-evans/create-pull-request).
+  stamp-site-version:
+    needs: build
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.event.inputs.draft != 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Stamp antora.yml to match the released PDF version
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          DATE: ${{ needs.build.outputs.date }}
+        run: |
+          set -euo pipefail
+
+          current="$(grep -E '^version:' antora.yml | awk '{print $2}')"
+          echo "main antora.yml version: ${current:-<none>}; released version: $VERSION"
+
+          # Monotonic guard: never stamp main backwards (e.g. when an old tag is
+          # rebuilt). Skip if main is already at a version >= this release.
+          if [ -n "$current" ] && [ "$current" != "~" ] && [ "$current" != "$VERSION" ]; then
+            highest="$(printf '%s\n%s\n' "${current#v}" "${VERSION#v}" | sort -V | tail -n1)"
+            if [ "$highest" = "${current#v}" ]; then
+              echo "main is already at $current (>= $VERSION); skipping stamp."
+              exit 0
+            fi
+          fi
+
+          make stamp-antora VERSION="$VERSION" DATE="$DATE"
+
+          if git diff --quiet -- antora.yml; then
+            echo "antora.yml already matches $VERSION; nothing to commit."
+            exit 0
+          fi
+
+          git config user.name  "riscv-gitbot"
+          git config user.email "actions@users.noreply.github.com"
+          git add antora.yml
+          git commit -m "chore(site): stamp Antora version $VERSION to match PDF"
+          git push origin HEAD:main

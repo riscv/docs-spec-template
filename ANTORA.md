@@ -154,10 +154,10 @@ No `nav:` key needed (declared in `antora.yml`). Renders at `/spec-sample/`.
     banner mirroring the PDF "Document State" preface. No hardcoded version.
   * Verified: stamping `v0.8.0` yields `/spec-sample/v0.8.0/` with cover
     "Version v0.8.0, 2026-06-12: Stabilized"; restamped to the repo's real state.
-  * **Release step (manual for now):** run `make stamp-antora VERSION=vX.Y.Z` and
-    commit `antora.yml` when cutting a release. CI auto-stamp-and-commit is
-    deferred to Phase 6 (below), pending the settled site-tracked branch and push
-    permissions.
+  * **Release step:** automated in `build-pdf.yml` (see Phase 6) — the same run
+    that builds the PDF stamps the matching version into `antora.yml` on `main`.
+    Manual fallback for local/offline releases: `make stamp-antora VERSION=vX.Y.Z`
+    then commit `antora.yml`.
 - [x] **Phase 5 — Extensions + preview.** Wired the central playbook's *asciidoc*
   extensions into the LOCAL preview so `antora antora-playbook.yml` renders like
   production:
@@ -191,13 +191,17 @@ No `nav:` key needed (declared in `antora.yml`). Renders at `/spec-sample/`.
   deploy. Cross-component refs (`common::risc-v_logo.svg`, xrefs into other specs)
   resolve only centrally, so they are exception-listed. Verified: clean tree
   passes; an injected broken xref fails the gate.
-  * **Still deferred — version-stamp automation.** On release, `make stamp-antora`
-    + committing `antora.yml` to the site-tracked branch should be automated so
-    Phase 4 lockstep needs no manual step. Candidate hooks: stamp+commit in
-    `version-bot.yml` *before* tagging (tag tree matches the tag); in
-    `build-pdf.yml` *after* the Release; or via a review PR (respects branch
-    protection). Left manual pending the settled long-term site branch and a CI
-    push token.
+  * **Version-stamp automation (Phase 4 lockstep, now wired).** `build-pdf.yml`
+    resolves `VERSION`/`DATE` once (shared by the PDF build and the stamp, so no
+    date drift) and a `stamp-site-version` job commits the matching `antora.yml`
+    to `main` — the HTML site version tracks the PDF with no manual step. It runs
+    only for real releases (skips PR previews and drafts) and is monotonic (never
+    stamps `main` backwards when an older tag is rebuilt). Chosen over
+    `version-bot.yml` because `build-pdf.yml` is the run the author actually
+    triggers to cut a release *and* the run that builds the PDF, so both come from
+    the same source/version/run by construction. Assumes the seeded repo's default
+    (unprotected) `main`; if a downstream repo protects `main`, grant the bot
+    push/bypass or convert the job to a review PR.
 
 ## Build commands
 
