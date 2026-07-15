@@ -2,3 +2,6 @@
 /images/*
 .DS_Store
 **/.DS_Store
+# Local Antora preview tooling (see package.json / ANTORA.md Phase 5)
+/node_modules/
+/.cache/

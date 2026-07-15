@@ -39,6 +39,19 @@ Seriously, multiple.
 |1|1|1|1 2+|Span Thing 1 and 2
 |===
 
+== Some mathematics
+
+Inline math renders with the mathjax extension locally and on the site, and with
+asciidoctor-mathematical in the PDF: the mask latexmath:[2^n - 1] selects the low
+latexmath:[n] bits.
+
+A displayed equation:
+
+[latexmath]
+++++
+\sum_{i=0}^{n-1} 2^i = 2^n - 1
+++++
+
 == Sub section
 
 Diam donec adipiscing tristique risus indexterm:[risus]. Nisl rhoncus mattis rhoncus urna. Egestas egestas fringilla phasellus faucibus scelerisque eleifend donec pretium vulputate. Porta non pulvinar neque laoreet suspendisse interdum consectetur libero id. Massa vitae tortor condimentum lacinia quis vel. Donec ac odio tempor orci. Mi sit amet mauris commodo quis imperdiet massa tincidunt. Quis enim lobortis scelerisque fermentum dui. Lacus viverra vitae congue eu. Sed faucibus turpis in eu mi bibendum neque. Sit amet porttitor eget dolor. Aliquet eget sit amet tellus cras adipiscing enim. Id cursus metus aliquam eleifend mi. Vestibulum lorem sed risus ultricies tristique nulla aliquet.

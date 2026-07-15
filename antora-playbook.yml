@@ -21,10 +21,18 @@ content:
 # override the central playbook and desync this spec (see ANTORA.md, design rule
 # #2). Purpose: make `antora antora-playbook.yml` preview render like production.
 # Keep in sync with the central block when it changes. The extensions that some
-# of these configure (asciidoctor-kroki, @djencks/asciidoctor-mathjax, the ASAM
-# bibliography extension) are added in Phase 5; the attributes are inert until
-# then, so wavedrom/math/cite still won't render in bare local preview yet.
+# of these configure are wired below (asciidoctor-kroki, mathjax). The ASAM
+# bibliography extension is custom/vendored in the central playbook (not on npm),
+# so it is NOT mirrored here: `cite:`/`bibliography::[]` render on the central
+# site and in the `make` PDF/HTML (asciidoctor-bibtex gem), not in this preview.
 asciidoc:
+  extensions:
+    # Mirror the central playbook's asciidoc extensions so local preview renders
+    # like production. Installed via package.json (`npm install`). Diagrams
+    # (incl. wavedrom) need a Kroki server -- see docker-compose.yml and the
+    # kroki-server-url attribute below.
+    - asciidoctor-kroki
+    - '@djencks/asciidoctor-mathjax'
   attributes:
     doctype: book
     experimental: ''
