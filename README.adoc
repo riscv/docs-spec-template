@@ -88,6 +88,24 @@ To clean up the generated files, run:
 make clean
 ```
 
+=== Previewing the Antora site locally
+
+The chapter sources under `modules/ROOT/pages/` also feed the Antora HTML site. To preview it locally (see link:ANTORA.md[ANTORA.md] for the full dual-build details):
+
+[source,shell]
+----
+npm install                # Antora + the kroki/mathjax preview extensions
+docker compose up -d kroki # local diagram server (wavedrom/kroki)
+npm run preview            # builds the site into build/site/
+----
+
+[WARNING]
+====
+**Citations and the bibliography do not render in the local Antora preview.** The `cite:` and `bibliography::[]` macros are handled by the RISC-V central playbook's ASAM bibliography extension, which is not bundled in this repository. In local preview they appear as raw text; this is expected, not a build error.
+
+To check bibliography output, build with `make` (the PDF/HTML use the `asciidoctor-bibtex` toolchain) or view the specification on the central RISC-V documentation site, where the ASAM extension renders them.
+====
+
 == Automated Versioning and Milestones
 
 The repository includes CI automation for specification revision metadata and state transitions.
