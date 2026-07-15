@@ -20,18 +20,18 @@ image::common::risc-v_logo.svg[id="riscvlogo"xs,alt="RISCV"]
 [.space-below]
 == RISC-V Example Specification (Zexmpl)
 
-Version 0.0.0, Draft
+// Revision line in the ARC title-page format ("Version <ver>, <date>: <Display>").
+// Values come from antora.yml attributes stamped by scripts/stamp-antora-version.sh
+// from the same release-info.sh source the PDF uses, so this stays in lockstep
+// with the PDF title page. Do not hardcode a version here.
+Version {page-revnumber}, {page-revdate}: {page-phase-display}
 
-// Phase/status banner. Update the state name, the wording, and (when ratified)
-// the block style to match this spec's ARC phase. Phase 4 of the Antora
-// migration will stamp the version and phase here from scripts/release-info.sh
-// so the site and the ARC submission PDF stay in lockstep.
+// Phase/status banner mirrors the PDF's "Document State" preface: the label and
+// notice both track the current ARC phase via stamped attributes.
 [NOTE]
-.This document is in the link:http://riscv.org/spec-state[Development state]
+.This document is in the link:http://riscv.org/spec-state[{page-phase-display} state]
 ====
-Assume everything is subject to change. At this stage, ideas, structures, and
-content are still evolving. Feedback and iteration are encouraged as nothing is
-final, and adjustments may be frequent.
+{page-phase-notice}
 ====
 
 Replace this text with a short abstract of your specification and links into the

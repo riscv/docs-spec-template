@@ -16,10 +16,12 @@
 
 name: spec-sample
 title: RISC-V Example Specification (Zexmpl)
-# `version: ~` marks this component as unversioned. Phase 4 of the Antora
-# migration will stamp a real version here from scripts/release-info.sh so the
-# site version and the ARC submission PDF stay in lockstep.
-version: ~
+# The site version is kept in EXACT lockstep with the ARC submission PDF: it is
+# the vX.Y.Z release tag, per the ARC Author Guide. Do not hand-edit -- it is
+# stamped from scripts/release-info.sh (the same source the PDF build uses) by
+# scripts/stamp-antora-version.sh / `make stamp-antora`, so the site path
+# (/spec-sample/<version>/) and the released PDF filename always match.
+version: v0.0.0
 
 nav:
   - modules/ROOT/nav.adoc
@@ -33,3 +35,14 @@ asciidoc:
     # as raw text. This is a spec-SPECIFIC resource the central playbook cannot
     # supply, so it legitimately belongs here (not a rendering-attribute override).
     asamBibliography: 'ROOT:resources/riscv-spec.bib'
+    # Release metadata for the cover page (index.adoc), kept in lockstep with the
+    # PDF title page. Spec-SPECIFIC (the central playbook cannot know this spec's
+    # version/phase), so it belongs here -- like asamBibliography above, not a
+    # shared-rendering override. Stamped by scripts/stamp-antora-version.sh; the
+    # `version:` key above is the authoritative version and page-revnumber mirrors
+    # it for display. Do not hand-edit.
+    page-revnumber: v0.0.0
+    page-revdate: 2026-07-14
+    page-phase: draft-and-development
+    page-phase-display: 'Draft and Development'
+    page-phase-notice: 'Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.'
