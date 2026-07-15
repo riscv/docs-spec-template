@@ -1,3 +1,4 @@
+---
 # Local Kroki server for Antora preview (`npm run preview` /
 # `antora antora-playbook.yml`). asciidoctor-kroki sends each diagram's source to
 # this server at build time and embeds the rendered SVG, so diagrams -- including
@@ -17,4 +18,4 @@ services:
   kroki:
     image: yuzutech/kroki:latest
     ports:
-      - "9870:8000"
+      - 9870:8000

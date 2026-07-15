@@ -1,3 +1,4 @@
+---
 # Antora Component Descriptor
 # https://docs.antora.org/antora/latest/component-version-descriptor/
 #
@@ -34,7 +35,7 @@ asciidoc:
     # render `bibliography::[]`. Without it the extension no-ops and those appear
     # as raw text. This is a spec-SPECIFIC resource the central playbook cannot
     # supply, so it legitimately belongs here (not a rendering-attribute override).
-    asamBibliography: 'ROOT:resources/riscv-spec.bib'
+    asamBibliography: ROOT:resources/riscv-spec.bib
     # Release metadata for the cover page (index.adoc), kept in lockstep with the
     # PDF title page. Spec-SPECIFIC (the central playbook cannot know this spec's
     # version/phase), so it belongs here -- like asamBibliography above, not a
@@ -44,5 +45,6 @@ asciidoc:
     page-revnumber: v0.0.0
     page-revdate: 2026-07-14
     page-phase: draft-and-development
-    page-phase-display: 'Draft and Development'
-    page-phase-notice: 'Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.'
+    page-phase-display: Draft and Development
+    page-phase-notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration
+      are encouraged as nothing is final, and adjustments may be frequent.
