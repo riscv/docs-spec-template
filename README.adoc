@@ -6,7 +6,17 @@ NOTE: If you are viewing this in a specification repository, kindly update the t
 
 [IMPORTANT]
 ====
-**ARC submissions:** Specifications submitted to the Architecture Review Committee (ARC) must follow the conventions in link:ARC_SUBMISSION.md[ARC_SUBMISSION.md] — versioned GitHub tag, PDF named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf`, and a title page that matches. The Makefile and CI workflows in this template produce ARC-compliant artifacts on every build by default.
+**First step — choose your mode.** This template runs in one of two modes, set by the `.docmode` file at the repo root:
+
+* **`spec`** (default) — a ratified RISC-V specification on the ARC / Policies & Procedures process.
+* **`doc`** — non-ratified documentation (for example, a developer guide) that still needs the PDF, the Makefile HTML, and the Antora site, but none of the ratification layer: no milestone phases, no "Document State" page, no ARC submission.
+
+If you are standing up a **documentation** repo, set `.docmode` to `doc` now; leave it as `spec` for a specification. This one file switches the Makefile, the release scripts, and CI — authors never touch it. See link:ANTORA.md[ANTORA.md] "Template modes" for what each mode includes, and link:MIGRATION.md[MIGRATION.md] for the doc-mode migration checklist.
+====
+
+[IMPORTANT]
+====
+**ARC submissions (spec mode):** Specifications submitted to the Architecture Review Committee (ARC) must follow the conventions in link:ARC_SUBMISSION.md[ARC_SUBMISSION.md] — versioned GitHub tag, PDF named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf`, and a title page that matches. In `spec` mode (the default) the Makefile and CI workflows in this template produce ARC-compliant artifacts on every build.
 
 **Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain — both the ARC submission PDF and the Antora site, which share one source tree. See link:ANTORA.md[ANTORA.md] for how that dual build works and why.
 ====

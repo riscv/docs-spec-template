@@ -21,6 +21,10 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$here/.." && pwd)"
 antora_yml="$repo_root/antora.yml"
 
+# Template mode (spec|doc); see .docmode. In doc mode antora.yml carries no
+# page-phase* keys, so only version/revnumber/revdate are stamped and required.
+DOC_MODE="${DOC_MODE:-$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$repo_root/.docmode" 2>/dev/null || echo spec)}"
+
 version="${1:-$("$here/release-info.sh" version)}"
 date="${2:-$(date +%Y-%m-%d)}"
 
@@ -55,8 +59,13 @@ tmp="$(mktemp)"
 # Each key must be found EXACTLY once; otherwise we would exit 0 having stamped
 # nothing (or having stamped twice), and the release workflow's `git diff` check
 # would read that as "already up to date". Fail loudly instead -- see END.
-awk '
-  BEGIN { cont = -1; split("version revnumber revdate display notice phase", req, " ") }
+awk -v mode="$DOC_MODE" '
+  BEGIN {
+    cont = -1
+    # Doc mode has no phase keys; require only the version/date trio.
+    if (mode == "doc") nreq = split("version revnumber revdate", req, " ")
+    else               nreq = split("version revnumber revdate display notice phase", req, " ")
+  }
 
   cont >= 0 {
     if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) {
@@ -78,7 +87,7 @@ awk '
 
   END {
     bad = ""
-    for (i = 1; i <= 6; i++)
+    for (i = 1; i <= nreq; i++)
       if (seen[req[i]] != 1)
         bad = bad sprintf("  %-12s found %d time(s), expected 1\n", req[i], seen[req[i]] + 0)
     if (bad != "") {

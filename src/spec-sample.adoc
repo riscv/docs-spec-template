@@ -6,7 +6,12 @@ ifndef::revdate[:revdate: 1/2023]
 ifndef::phase[:phase: draft-and-development]
 ifndef::phase_display[:phase_display: {phase}]
 ifndef::phase_notice[:phase_notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.]
+// The default revremark is a ratification (spec-state) message. In doc mode the
+// Makefile sets the `doc-mode` attribute and passes an empty revremark, so this
+// spec-only default is suppressed.
+ifndef::doc-mode[]
 ifndef::revremark[:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.]
+endif::[]
 ifndef::milestone_id[:milestone_id: {phase}]
 ifndef::spec_short[:spec_short: spec-sample]
 :docgroup: RISC-V Task Group
@@ -46,9 +51,12 @@ endif::[]
 
 // "Document State" preface is the phase Note rendered as page 2 of the PDF
 // (TOC is placed after it via the toc::[] macro below). See ARC_SUBMISSION.md §3.3.
+// Ratification-only: doc mode (non-ratified) omits it via the `doc-mode` attr.
+ifndef::doc-mode[]
 [preface]
 == Document State
 *Note:* {phase_notice}
+endif::[]
 
 toc::[]
 

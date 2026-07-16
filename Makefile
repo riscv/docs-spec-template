@@ -19,6 +19,13 @@ DOCS := \
 # Override in derived repos: e.g. SPEC_SHORT := Zifoo
 SPEC_SHORT ?= $(basename $(firstword $(DOCS)))
 
+# Template mode: "spec" (ratified, ARC/P&P milestones) or "doc" (non-ratified
+# documentation). Read once from the committed .docmode file; absent => "spec".
+# Exported BEFORE the release-info.sh shell calls below so an env/CLI override
+# (`make DOC_MODE=doc`) propagates into them and the phase surface goes neutral.
+DOC_MODE ?= $(shell awk 'NF && $$1 !~ /^#/ { print $$1; exit }' .docmode 2>/dev/null || echo spec)
+export DOC_MODE
+
 DATE ?= $(shell date +%Y-%m-%d)
 DATE_STAMP := $(subst -,,$(DATE))
 VERSION ?= $(shell ./scripts/release-info.sh version)
@@ -53,6 +60,11 @@ DOCS_PDF := $(DOCS:%.adoc=%.pdf)
 DOCS_HTML := $(DOCS:%.adoc=%.html)
 
 XTRA_ADOC_OPTS :=
+# In doc mode, set the `doc-mode` AsciiDoc attribute so the PDF assembler omits
+# the ratification-only "Document State" preface (see src/*.adoc guards).
+ifeq ($(DOC_MODE),doc)
+XTRA_ADOC_OPTS += -a doc-mode
+endif
 ASCIIDOCTOR_PDF := asciidoctor-pdf
 ASCIIDOCTOR_HTML := asciidoctor
 OPTIONS := --trace \
@@ -76,9 +88,17 @@ REQUIRES := --require=asciidoctor-bibtex \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
-.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora
+.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora set-mode
 
 all: build
+
+# Switch the template mode in place (reversible). Flips .docmode and reconciles
+# antora.yml's page-phase* block, then re-stamps. Use if the mode was set in
+# error at repo creation -- no need to recreate the repo. E.g. `make set-mode
+# MODE=doc`. No Docker needed; edits .docmode + antora.yml in place, commit both.
+set-mode:
+	@if [ -z "$(MODE)" ]; then echo "usage: make set-mode MODE=<spec|doc>" >&2; exit 2; fi
+	./scripts/set-mode.sh "$(MODE)"
 
 # Stamp antora.yml with the current VERSION/DATE so the Antora HTML site version
 # stays in EXACT lockstep with the ARC PDF (both derive from release-info.sh /

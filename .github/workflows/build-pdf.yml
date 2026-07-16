@@ -62,9 +62,12 @@ jobs:
         id: set_build_version
         run: |
           set -euo pipefail
+          # Doc mode (non-ratified) has no milestone floors; the target_phase
+          # input is inert, so ignore it and fall through to auto-next.
+          mode="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' .docmode 2>/dev/null || echo spec)"
           if [ -n "${{ github.event.inputs.release_version }}" ]; then
             version="${{ github.event.inputs.release_version }}"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
+          elif [ "$mode" != "doc" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
             version="$(./scripts/release-info.sh phase-floor-version "${{ github.event.inputs.target_phase }}")"
           elif [ "${{ github.ref_type }}" = "tag" ]; then
             version="${{ github.ref_name }}"
