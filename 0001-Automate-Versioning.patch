@@ -27,7 +27,7 @@ index 3264da7..6881a17 100644
 @@ -1,25 +1,27 @@
  ---
  name: Create Specification Document
- 
+
 -# The workflow is triggered by pull request, push to main, and manual dispatch.
 +# The workflow is triggered by pull request, version tags, and manual dispatch.
  on:
@@ -71,7 +71,7 @@ index 3264da7..6881a17 100644
 -      - main
 +    tags:
 +      - 'v*'
- 
+
  jobs:
    build:
 @@ -39,25 +41,56 @@ jobs:
@@ -80,7 +80,7 @@ index 3264da7..6881a17 100644
          with:
 +          fetch-depth: 0
            submodules: recursive
- 
+
 -      - name: Get next version
 -        uses: reecetech/version-increment@2024.4.4
 -        id: version
@@ -91,7 +91,7 @@ index 3264da7..6881a17 100644
        # Pull the latest RISC-V Docs container image
        - name: Pull Container
          run: docker pull riscvintl/riscv-docs-base-container-image:latest
- 
+
 -      # Override VERSION and REVMARK for manual workflow dispatch
 -      - name: Update environment variables
 +      # Set VERSION for all builds (manual overrides optional).
@@ -140,13 +140,13 @@ index 3264da7..6881a17 100644
 +              echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
 +              ;;
 +          esac
- 
+
        # Build Files
        - name: Build Files
 @@ -71,16 +104,54 @@ jobs:
            path: ${{ github.workspace }}/build/*.pdf
            retention-days: 30
- 
+
 -      # Create Release
 -      - name: Create Release
 +      # Create official release for version tag pushes
@@ -387,9 +387,9 @@ index c925ae5..96c5124 100644
 --- a/CONTRIBUTING.md
 +++ b/CONTRIBUTING.md
 @@ -2,6 +2,33 @@
- 
+
  As an open-source project, we appreciate and encourage community members to submit patches directly to the project. To maintain a well-organized development environment, we have established standards and methods for submitting changes. This document outlines the process for submitting patches to the project, ensuring that your contribution is swiftly incorporated into the codebase.
- 
+
 +# Version and State Automation
 +
 +Specification version/state metadata is managed by CI.
@@ -418,7 +418,7 @@ index c925ae5..96c5124 100644
 +When a new version crosses a milestone boundary, CI opens a PR that updates `SPEC_STATE.md` for maintainer review.
 +
  # Licensing
- 
+
  Licensing is crucial for open-source projects, as it guarantees that the software remains available under the conditions specified by the author.
 diff --git a/Makefile b/Makefile
 index f6f174f..f9b82f2 100644
@@ -426,7 +426,7 @@ index f6f174f..f9b82f2 100644
 +++ b/Makefile
 @@ -16,8 +16,11 @@ DOCS := \
  	spec-sample.adoc
- 
+
  DATE ?= $(shell date +%Y-%m-%d)
 -VERSION ?= v0.0.0
 -REVMARK ?= Draft
@@ -458,7 +458,7 @@ index d89c32d..710da91 100644
 @@ -81,6 +81,71 @@ To clean up the generated files, run:
  make clean
  ```
- 
+
 +== Automated Versioning and Milestones
 +
 +The repository includes CI automation for specification revision metadata and state transitions.
@@ -525,7 +525,7 @@ index d89c32d..710da91 100644
 +* By default, backward jumps are blocked; set `allow_non_monotonic=true` only when intentionally overriding this safety check.
 +
  == Enabling pre-commit checks locally
- 
+
  The repository has some basic commit checks set up with https://pre-commit.com/[pre-commit] that will be enforced by the GitHub CI.
 diff --git a/SPEC_STATE.md b/SPEC_STATE.md
 new file mode 100644
@@ -972,7 +972,7 @@ index d2a978d..b99b2e7 100644
  :colophon:
 @@ -51,11 +54,9 @@ list-of::table[hide_empty_section=true, enhanced_rendering=true]
  list-of::listing[hide_empty_section=true, enhanced_rendering=true]
- 
+
  [WARNING]
 -.This document is in the link:http://riscv.org/spec-state[Development state]
 +.This document is in the link:http://riscv.org/spec-state[{phase_display} state]
@@ -982,8 +982,7 @@ index d2a978d..b99b2e7 100644
 -may not conform to the future standard.
 +{phase_notice}
  ====
- 
- [preface]
--- 
-2.50.1 (Apple Git-155)
 
+ [preface]
+--
+2.50.1 (Apple Git-155)

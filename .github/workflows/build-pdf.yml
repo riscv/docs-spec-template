@@ -37,6 +37,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Expose the resolved version/date so the stamp-site-version job can keep
+    # antora.yml (the HTML site version) in exact lockstep with this PDF build.
+    outputs:
+      version: ${{ steps.set_build_version.outputs.version }}
+      date: ${{ steps.set_build_version.outputs.date }}
+
     steps:
       # Checkout the repository
       - name: Checkout repository
@@ -53,6 +59,7 @@ jobs:
       # Tag pushes use the exact tag; PR builds compute next patch.
       # Manual builds support explicit version, milestone floor, or auto behavior.
       - name: Set build version
+        id: set_build_version
         run: |
           set -euo pipefail
           if [ -n "${{ github.event.inputs.release_version }}" ]; then
@@ -79,7 +86,13 @@ jobs:
             v*) ;;
             *) version="v$version" ;;
           esac
+          # Resolve the build date ONCE so the PDF and the Antora version stamp
+          # share it exactly (no midnight-boundary drift between separate steps).
+          date="$(date +%Y-%m-%d)"
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "DATE=$date" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
 
       - name: Classify release type
         run: |
@@ -101,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           export VERSION="${VERSION}"
-          export DATE="$(date +%Y-%m-%d)"
+          export DATE="${DATE}"
           echo "Building ${VERSION} (${DATE})"
           make
 
@@ -164,3 +177,98 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
         if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'
+
+  # Keep the Antora HTML site version in EXACT lockstep with the PDF this run just
+  # built: stamp the SAME resolved version/date into antora.yml on main, so the
+  # central playbook publishes the version the PDF carries. The PDF and this stamp
+  # come from one build job (same source, same VERSION/DATE) -- they cannot drift.
+  #
+  # Runs only for real releases: not PR previews (nothing to publish) and not
+  # drafts (not public yet). Never moves main's version backwards, so rebuilding
+  # an older tag will not regress the site.
+  #
+  # The stamp lands as a REVIEW PR, not a direct push to `main`. This template is
+  # seeded into many spec repos whose branch protection we do not control, and a
+  # rejected push would leave the release green while the site version silently
+  # lagged the PDF -- the exact divergence this job exists to prevent. Opening a
+  # PR works under any protection setting and matches the milestone-PR idiom in
+  # version-bot.yml. Cost: a maintainer must merge it for the site to catch up,
+  # so treat that merge as part of cutting a release (see MIGRATION.md Step 14).
+  stamp-site-version:
+    needs: build
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.event.inputs.draft != 'true'
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Stamp antora.yml to match the released PDF version
+        id: stamp
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          DATE: ${{ needs.build.outputs.date }}
+        run: |
+          set -euo pipefail
+
+          current="$(grep -E '^version:' antora.yml | awk '{print $2}')"
+          echo "main antora.yml version: ${current:-<none>}; released version: $VERSION"
+
+          # Monotonic guard: never stamp main backwards (e.g. when an old tag is
+          # rebuilt). Skip if main is already at a version >= this release.
+          if [ -n "$current" ] && [ "$current" != "~" ] && [ "$current" != "$VERSION" ]; then
+            highest="$(printf '%s\n%s\n' "${current#v}" "${VERSION#v}" | sort -V | tail -n1)"
+            if [ "$highest" = "${current#v}" ]; then
+              echo "main is already at $current (>= $VERSION); skipping stamp."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          # Leaves antora.yml modified in the worktree; create-pull-request below
+          # is what commits it. stamp-antora fails loudly if it cannot stamp, so a
+          # no-op here means "already correct", never "silently did nothing".
+          make stamp-antora VERSION="$VERSION" DATE="$DATE"
+
+          if git diff --quiet -- antora.yml; then
+            echo "antora.yml already matches $VERSION; nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open site version stamp PR
+        if: steps.stamp.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          base: main
+          commit-message: 'chore(site): stamp Antora version ${{ needs.build.outputs.version }} to match PDF'
+          branch: gitbot/stamp-site-${{ needs.build.outputs.version }}
+          delete-branch: true
+          title: Stamp Antora site version ${{ needs.build.outputs.version }} to match released PDF
+          body: |
+            This PR was opened automatically by the `${{ needs.build.outputs.version }}` release build.
+
+            The ARC Author Guide requires the published HTML site version to match
+            the submission PDF exactly. Antora reads a static `version:` from the
+            committed `antora.yml`, so a release has to stamp that file.
+
+            Released PDF version: `${{ needs.build.outputs.version }}` (${{ needs.build.outputs.date }})
+
+            **Until this merges, the site version lags the released PDF.** The
+            values come from `scripts/release-info.sh` -- the same source the PDF
+            build uses -- so this needs a merge, not an edit.
+          labels: |
+            site-version
+            automated
+          add-paths: |
+            antora.yml

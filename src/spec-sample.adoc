@@ -24,7 +24,7 @@ ifndef::spec_short[:spec_short: spec-sample]
 //:WaveDromEditorApp: app/wavedrom-editor.app
 :imagesoutdir: images
 //:srcdir: src
-:bibtex-file: src/example.bib
+:bibtex-file: modules/ROOT/resources/riscv-spec.bib
 :bibtex-order: alphabetical
 :bibtex-style: apa
 :icons: font
@@ -73,12 +73,21 @@ https://creativecommons.org/licenses/by/4.0/.
 
 Copyright 2025 by RISC-V International.
 
+// Chapter sources live under modules/ROOT/pages/ so they double as standalone
+// Antora pages (each with a level-0 title). leveloffset=+1 demotes those titles
+// by one level here, reproducing the historical PDF section structure. This file
+// is the single PDF assembler; the pages are the single content source. See
+// ANTORA.md and the Antora migration plan for the dual-build rationale.
 [preface]
-include::contributors.adoc[]
+include::../modules/ROOT/pages/contributors.adoc[leveloffset=+1]
 
-include::intro.adoc[]
-include::chapter2.adoc[]
+include::../modules/ROOT/pages/intro.adoc[leveloffset=+1]
+include::../modules/ROOT/pages/chapter2.adoc[leveloffset=+1]
 
-// The index must precede the bibliography
-include::index.adoc[]
-include::bibliography.adoc[]
+// The index must precede the bibliography. The index macro is PDF-only (Antora
+// does not generate a back-of-book index), so it lives here in the assembler
+// rather than in a page.
+[index]
+== Index
+
+include::../modules/ROOT/pages/bibliography.adoc[leveloffset=+1]

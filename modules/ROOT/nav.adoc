@@ -1,0 +1,16 @@
+// Navigation file for Antora
+// https://docs.antora.org/antora/latest/navigation/
+//
+// Update this file to reflect your specification's chapter structure.
+//
+// SECTION NUMBERING: the RISC-V central playbook assigns chapter numbers by the
+// LINE NUMBER of each xref entry below, via its numbering_rules (see ANTORA.md,
+// "Section numbering"). If you add, remove, or reorder entries here -- or edit
+// these header comments -- the line numbers shift, so the matching rule in the
+// central playbook (antora.riscv.org) MUST be updated, or site numbering drifts.
+
+* xref:index.adoc[RISC-V Example Specification]
+** xref:intro.adoc[Introduction]
+** xref:chapter2.adoc[The Second Chapter]
+** xref:contributors.adoc[Contributors]
+** xref:bibliography.adoc[Bibliography]

@@ -76,9 +76,16 @@ REQUIRES := --require=asciidoctor-bibtex \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
-.PHONY: all build clean build-container build-no-container build-docs arc-rename
+.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora
 
 all: build
+
+# Stamp antora.yml with the current VERSION/DATE so the Antora HTML site version
+# stays in EXACT lockstep with the ARC PDF (both derive from release-info.sh /
+# the git tag). Run at release time -- e.g. `make stamp-antora VERSION=v0.8.0`.
+# No Docker needed; edits antora.yml in place and must be committed.
+stamp-antora:
+	./scripts/stamp-antora-version.sh "$(VERSION)" "$(DATE)"
 
 # After AsciiDoctor produces build/<basename>.pdf, rename each PDF to the
 # ARC-compliant form <basename>-v<version>-<YYYYMMDD>.pdf so every build

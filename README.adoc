@@ -8,7 +8,7 @@ NOTE: If you are viewing this in a specification repository, kindly update the t
 ====
 **ARC submissions:** Specifications submitted to the Architecture Review Committee (ARC) must follow the conventions in link:ARC_SUBMISSION.md[ARC_SUBMISSION.md] — versioned GitHub tag, PDF named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf`, and a title page that matches. The Makefile and CI workflows in this template produce ARC-compliant artifacts on every build by default.
 
-**Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain.
+**Migrating an existing repo?** See link:MIGRATION.md[MIGRATION.md] for the step-by-step checklist to bring a downstream fork in line with the current toolchain — both the ARC submission PDF and the Antora site, which share one source tree. See link:ANTORA.md[ANTORA.md] for how that dual build works and why.
 ====
 
 == License
@@ -21,7 +21,7 @@ The list of maintainers of this specification is maintained in the link:MAINTAIN
 
 == Contributors
 
-The list of contributors to this specification is maintained in the link:src/contributors.adoc[contributors] file.
+The list of contributors to this specification is maintained in the link:modules/ROOT/pages/contributors.adoc[contributors] file.
 
 For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUTING] file.
 
@@ -87,6 +87,29 @@ To clean up the generated files, run:
 ```shell
 make clean
 ```
+
+=== Previewing the Antora site locally
+
+The chapter sources under `modules/ROOT/pages/` also feed the Antora HTML site. To preview it locally (see link:ANTORA.md[ANTORA.md] for the full dual-build details):
+
+[source,shell]
+----
+npm install                # Antora + the kroki/mathjax preview extensions
+docker compose up -d kroki # local diagram server (wavedrom/kroki)
+npm run preview            # builds the site into build/site/
+----
+
+[WARNING]
+====
+**Citations and the bibliography do not render in the local Antora preview.** The `cite:` and `bibliography::[]` macros are handled by the RISC-V central playbook's ASAM bibliography extension, which is not bundled in this repository. In local preview they appear as raw text; this is expected, not a build error.
+
+To check bibliography output, build with `make` (the PDF/HTML use the `asciidoctor-bibtex` toolchain) or view the specification on the central RISC-V documentation site, where the ASAM extension renders them.
+====
+
+[IMPORTANT]
+====
+**Don't forget site numbering rules.** Chapter/section numbering on the published site is applied by the RISC-V central playbook, keyed to the **line numbers of the `xref` entries in `modules/ROOT/nav.adoc`** — not by anything in this repo. When you finalize your chapter structure (or add/remove/reorder pages in `nav.adoc`), you must add or update the matching entry in the central playbook's `numbering_rules`, or your spec will render with wrong or missing chapter numbers. See the *Section numbering* section of link:ANTORA.md[ANTORA.md] for the exact rule and format.
+====
 
 == Automated Versioning and Milestones
 
