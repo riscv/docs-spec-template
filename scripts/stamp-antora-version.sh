@@ -43,15 +43,61 @@ export A_PHASE_NOTICE="$(yq_squote "$phase_notice")"
 tmp="$(mktemp)"
 # Replace values by unique key. The trailing ':' in each pattern anchors the key
 # so e.g. `page-phase:` never matches `page-phase-display:`.
+#
+# Every value we write is a single-line quoted scalar. If a formatter or a hand
+# edit has line-wrapped one of these into a plain MULTI-line scalar, replacing
+# just the key's first line would orphan the continuation after a now-closed
+# quoted scalar and silently produce invalid YAML. So after replacing a key we
+# also drop any following lines that are indented deeper than it -- those are
+# the remains of its wrapped value. `cont` holds the indent of the key just
+# written, or -1 when we are not inside a replaced value.
+#
+# Each key must be found EXACTLY once; otherwise we would exit 0 having stamped
+# nothing (or having stamped twice), and the release workflow's `git diff` check
+# would read that as "already up to date". Fail loudly instead -- see END.
 awk '
-  /^version:/                  { print "version: " ENVIRON["A_VERSION"]; next }
-  /^    page-revnumber:/       { print "    page-revnumber: " ENVIRON["A_VERSION"]; next }
-  /^    page-revdate:/         { print "    page-revdate: " ENVIRON["A_REVDATE"]; next }
-  /^    page-phase-display:/   { print "    page-phase-display: " ENVIRON["A_PHASE_DISPLAY"]; next }
-  /^    page-phase-notice:/    { print "    page-phase-notice: " ENVIRON["A_PHASE_NOTICE"]; next }
-  /^    page-phase:/           { print "    page-phase: " ENVIRON["A_PHASE"]; next }
+  BEGIN { cont = -1; split("version revnumber revdate display notice phase", req, " ") }
+
+  cont >= 0 {
+    if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) {
+      cont = -1
+    } else {
+      match($0, /^[[:space:]]*/)
+      if (RLENGTH > cont) next
+      cont = -1
+    }
+  }
+
+  /^version:/                { print "version: " ENVIRON["A_VERSION"];                      seen["version"]++;   cont = 0; next }
+  /^    page-revnumber:/     { print "    page-revnumber: " ENVIRON["A_VERSION"];           seen["revnumber"]++; cont = 4; next }
+  /^    page-revdate:/       { print "    page-revdate: " ENVIRON["A_REVDATE"];             seen["revdate"]++;   cont = 4; next }
+  /^    page-phase-display:/ { print "    page-phase-display: " ENVIRON["A_PHASE_DISPLAY"]; seen["display"]++;   cont = 4; next }
+  /^    page-phase-notice:/  { print "    page-phase-notice: " ENVIRON["A_PHASE_NOTICE"];   seen["notice"]++;    cont = 4; next }
+  /^    page-phase:/         { print "    page-phase: " ENVIRON["A_PHASE"];                 seen["phase"]++;     cont = 4; next }
   { print }
+
+  END {
+    bad = ""
+    for (i = 1; i <= 6; i++)
+      if (seen[req[i]] != 1)
+        bad = bad sprintf("  %-12s found %d time(s), expected 1\n", req[i], seen[req[i]] + 0)
+    if (bad != "") {
+      printf "stamp-antora-version: antora.yml does not have the expected keys:\n%s", bad > "/dev/stderr"
+      exit 3
+    }
+  }
 ' "$antora_yml" > "$tmp"
 mv "$tmp" "$antora_yml"
+
+# Assert the result still parses. Without this the release workflow would commit
+# a corrupt antora.yml to main and the site version would stop tracking the PDF.
+if python3 -c 'import yaml' 2>/dev/null; then
+  python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))' "$antora_yml" || {
+    echo "stamp-antora-version: stamped antora.yml is not valid YAML (see above)" >&2
+    exit 4
+  }
+else
+  echo "stamp-antora-version: WARNING: python3 + PyYAML unavailable; skipped YAML validation" >&2
+fi
 
 echo "Stamped antora.yml: version=$version phase=$phase ($phase_display) date=$date"

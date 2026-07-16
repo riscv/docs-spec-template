@@ -199,9 +199,16 @@ unnumbered back matter).
   * Verified: stamping `v0.8.0` yields `/spec-sample/v0.8.0/` with cover
     "Version v0.8.0, 2026-06-12: Stabilized"; restamped to the repo's real state.
   * **Release step:** automated in `build-pdf.yml` (see Phase 6) — the same run
-    that builds the PDF stamps the matching version into `antora.yml` on `main`.
-    Manual fallback for local/offline releases: `make stamp-antora VERSION=vX.Y.Z`
-    then commit `antora.yml`.
+    that builds the PDF stamps the matching version and opens a review PR against
+    `main`; merging it is part of cutting a release. Manual fallback for
+    local/offline releases: `make stamp-antora VERSION=vX.Y.Z` then commit
+    `antora.yml`.
+  * **Hardening:** the stamp script asserts that each key was substituted exactly
+    once and that the result still parses as YAML, then fails loudly. It
+    previously exited 0 having silently produced invalid YAML when a formatter
+    line-wrapped `page-phase-notice` into a plain multi-line scalar (caught in
+    review of #105); it now also drops such wrapped continuations. `antora.yml`
+    is excluded from yamlfmt (#106) so the wrap cannot return.
 - [x] **Phase 5 — Extensions + preview.** Wired the central playbook's *asciidoc*
   extensions into the LOCAL preview so `antora antora-playbook.yml` renders like
   production:
@@ -237,15 +244,21 @@ unnumbered back matter).
   passes; an injected broken xref fails the gate.
   * **Version-stamp automation (Phase 4 lockstep, now wired).** `build-pdf.yml`
     resolves `VERSION`/`DATE` once (shared by the PDF build and the stamp, so no
-    date drift) and a `stamp-site-version` job commits the matching `antora.yml`
-    to `main` — the HTML site version tracks the PDF with no manual step. It runs
-    only for real releases (skips PR previews and drafts) and is monotonic (never
-    stamps `main` backwards when an older tag is rebuilt). Chosen over
-    `version-bot.yml` because `build-pdf.yml` is the run the author actually
-    triggers to cut a release *and* the run that builds the PDF, so both come from
-    the same source/version/run by construction. Assumes the seeded repo's default
-    (unprotected) `main`; if a downstream repo protects `main`, grant the bot
-    push/bypass or convert the job to a review PR.
+    date drift) and a `stamp-site-version` job stamps the matching `antora.yml`
+    and opens a review PR against `main`. It runs only for real releases (skips
+    PR previews and drafts) and is monotonic (never stamps `main` backwards when
+    an older tag is rebuilt). Chosen over `version-bot.yml` because
+    `build-pdf.yml` is the run the author actually triggers to cut a release *and*
+    the run that builds the PDF, so both come from the same source/version/run by
+    construction.
+  * **Why a PR, not a direct push** (changed in review of #105): the original job
+    ran `git push origin HEAD:main`, assuming a seeded repo's `main` is
+    unprotected. That is a bad bet for a file copied into 20+ spec repos whose
+    settings we do not control — and a rejected push fails *after* the Release is
+    published, leaving a green release with a silently stale site. A PR works
+    under any protection setting and matches the milestone-PR idiom already in
+    `version-bot.yml`. Trade-off: lockstep is no longer merge-free — an unmerged
+    stamp PR means the site lags, so treat it as part of the release checklist.
 
 ## Build commands
 

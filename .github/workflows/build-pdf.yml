@@ -187,9 +187,13 @@ jobs:
   # drafts (not public yet). Never moves main's version backwards, so rebuilding
   # an older tag will not regress the site.
   #
-  # NOTE: a freshly seeded repo's `main` is unprotected, so the token below can
-  # push directly. If a downstream repo later protects `main`, either grant this
-  # bot push/bypass on `main` or convert this to a PR (peter-evans/create-pull-request).
+  # The stamp lands as a REVIEW PR, not a direct push to `main`. This template is
+  # seeded into many spec repos whose branch protection we do not control, and a
+  # rejected push would leave the release green while the site version silently
+  # lagged the PDF -- the exact divergence this job exists to prevent. Opening a
+  # PR works under any protection setting and matches the milestone-PR idiom in
+  # version-bot.yml. Cost: a maintainer must merge it for the site to catch up,
+  # so treat that merge as part of cutting a release (see MIGRATION.md Step 14).
   stamp-site-version:
     needs: build
     runs-on: ubuntu-latest
@@ -198,6 +202,7 @@ jobs:
       github.event.inputs.draft != 'true'
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout main
         uses: actions/checkout@v6
@@ -207,6 +212,7 @@ jobs:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Stamp antora.yml to match the released PDF version
+        id: stamp
         env:
           VERSION: ${{ needs.build.outputs.version }}
           DATE: ${{ needs.build.outputs.date }}
@@ -222,19 +228,47 @@ jobs:
             highest="$(printf '%s\n%s\n' "${current#v}" "${VERSION#v}" | sort -V | tail -n1)"
             if [ "$highest" = "${current#v}" ]; then
               echo "main is already at $current (>= $VERSION); skipping stamp."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
 
+          # Leaves antora.yml modified in the worktree; create-pull-request below
+          # is what commits it. stamp-antora fails loudly if it cannot stamp, so a
+          # no-op here means "already correct", never "silently did nothing".
           make stamp-antora VERSION="$VERSION" DATE="$DATE"
 
           if git diff --quiet -- antora.yml; then
             echo "antora.yml already matches $VERSION; nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
-          git config user.name  "riscv-gitbot"
-          git config user.email "actions@users.noreply.github.com"
-          git add antora.yml
-          git commit -m "chore(site): stamp Antora version $VERSION to match PDF"
-          git push origin HEAD:main
+      - name: Open site version stamp PR
+        if: steps.stamp.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          base: main
+          commit-message: 'chore(site): stamp Antora version ${{ needs.build.outputs.version }} to match PDF'
+          branch: gitbot/stamp-site-${{ needs.build.outputs.version }}
+          delete-branch: true
+          title: Stamp Antora site version ${{ needs.build.outputs.version }} to match released PDF
+          body: |
+            This PR was opened automatically by the `${{ needs.build.outputs.version }}` release build.
+
+            The ARC Author Guide requires the published HTML site version to match
+            the submission PDF exactly. Antora reads a static `version:` from the
+            committed `antora.yml`, so a release has to stamp that file.
+
+            Released PDF version: `${{ needs.build.outputs.version }}` (${{ needs.build.outputs.date }})
+
+            **Until this merges, the site version lags the released PDF.** The
+            values come from `scripts/release-info.sh` -- the same source the PDF
+            build uses -- so this needs a merge, not an edit.
+          labels: |
+            site-version
+            automated
+          add-paths: |
+            antora.yml

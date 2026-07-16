@@ -2,9 +2,13 @@
 # Antora Playbook
 # https://docs.antora.org/antora/latest/playbook/
 #
-# Used by the `make antora` target to build the HTML site locally.
-# For CI/CD, a separate playbook in your docs site repository will
-# typically reference this component repository by URL.
+# LOCAL PREVIEW ONLY -- run via `npm run preview` (see package.json), with a
+# local Kroki up (`docker compose up -d kroki`). It mirrors the central playbook's
+# extensions and attributes so what you see here matches production.
+#
+# It does NOT build the published site: the real site is assembled by the central
+# playbook (github.com/riscv-admin/antora.riscv.org), which consumes this repo as
+# one content source by URL. See ANTORA.md "Production model".
 
 site:
   title: RISC-V Specification
@@ -48,7 +52,9 @@ asciidoc:
     outlinelevels: 5
     part-signifier: Chapter
     setanchors:
-    # Kroki (diagrams/wavedrom) -- consumed once the extension lands in Phase 5.
+    # Kroki (diagrams/wavedrom) -- consumed by the asciidoctor-kroki extension
+    # wired up under `asciidoc.extensions` above. Requires a local Kroki server:
+    # `docker compose up -d kroki`.
     kroki-server-url: http://localhost:9870
     kroki-fetch-diagram: true
     kroki-cache-path: ./.cache/kroki

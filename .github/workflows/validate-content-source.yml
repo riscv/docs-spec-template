@@ -15,9 +15,8 @@ name: Validate Antora content source
 # or xrefs into other specs) resolve only in the central multi-source build, so
 # they are expected to be unresolved here and are exception-listed below.
 #
-# Not wired here: the Phase 4 version stamp automation (make stamp-antora +
-# commit antora.yml on release) -- see ANTORA.md Phase 6 (deferred pending the
-# settled site-tracked branch and a CI push token).
+# The release-time version stamp (make stamp-antora -> antora.yml) is NOT part of
+# this gate; it runs from build-pdf.yml on release. See ANTORA.md Phase 4/6.
 
 on:
   pull_request:
@@ -26,21 +25,28 @@ on:
       - main
   workflow_dispatch:
 
+# Read-only: this job builds and inspects the component, it never writes to the
+# repo or publishes anything.
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
 
     # Local Kroki server for asciidoctor-kroki (wavedrom etc.). Matches the
     # kroki-server-url: http://localhost:9870 attribute in antora-playbook.yml.
+    # Pinned: a floating `latest` can change diagram output (or break) between
+    # runs with no change in this repo. Keep in sync with docker-compose.yml.
     services:
       kroki:
-        image: yuzutech/kroki:latest
+        image: yuzutech/kroki:0.31.1
         ports:
           - 9870:8000
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -52,6 +58,23 @@ jobs:
 
       - name: Install preview tooling
         run: npm ci
+
+      # The service container is "started" before it can serve; without this the
+      # Antora build can race Kroki's JVM startup and fail on diagram rendering.
+      # Polled from the runner (which has curl) rather than via a container
+      # healthcheck, since the Kroki image ships no HTTP client to probe itself.
+      - name: Wait for Kroki
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9870/health >/dev/null 2>&1; then
+              echo "Kroki is up after ${i} attempt(s)."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Kroki did not become healthy within 60s"
+          exit 1
 
       - name: Build component (isolated)
         run: |

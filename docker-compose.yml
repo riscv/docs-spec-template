@@ -16,6 +16,9 @@
 # add them here if this spec starts using those.
 services:
   kroki:
-    image: yuzutech/kroki:latest
+    # Pinned rather than `latest` so a local preview renders what CI renders --
+    # keep in sync with the kroki service in
+    # .github/workflows/validate-content-source.yml.
+    image: yuzutech/kroki:0.31.1
     ports:
       - 9870:8000

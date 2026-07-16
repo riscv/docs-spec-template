@@ -406,13 +406,16 @@ file.
       `page-revdate`, `page-phase`, `page-phase-display`, `page-phase-notice`)
       from `release-info.sh` — the same source the PDF uses, so the two cannot
       diverge. It is idempotent and preserves comments and nav.
-- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job so releases
-      stamp `antora.yml` automatically. It runs only for real releases (skips PR
-      previews and drafts) and is monotonic — it will not stamp `main` backwards
-      when an older tag is rebuilt.
-- [ ] **If your `main` is protected**, that job cannot push. Either grant the bot
-      push/bypass, or convert the job to open a review PR. The template assumes
-      the seeded repo's default unprotected `main`.
+- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job. On every real
+      release (it skips PR previews and drafts) it stamps `antora.yml` and opens
+      a **review PR** against `main` titled
+      `Stamp Antora site version vX.Y.Z to match released PDF`. It is monotonic —
+      it will not stamp `main` backwards when an older tag is rebuilt.
+- [ ] **Merging that PR is part of cutting a release** (Step 14). Until it
+      merges, the site version lags the released PDF. It deliberately opens a PR
+      rather than pushing to `main` directly so it works whatever branch
+      protection your repo has — a rejected push would leave the release green
+      and the site silently stale.
 - [ ] Verify:
       ```bash
       make stamp-antora VERSION=v0.8.0 DATE=2026-06-12
@@ -444,10 +447,13 @@ When you're ready to advance to the next milestone:
       for an intermediate patch tag).
 - [ ] Confirm the resulting release has a single PDF whose name matches the
       ARC convention.
-- [ ] Confirm `antora.yml` on `main` was stamped to the same version by the
-      `stamp-site-version` job, and that the site renders at
-      `/<component>/<version>/` with a cover reading
-      `Version vX.Y.Z, YYYY-MM-DD: <Display>` — identical to the PDF title page.
+- [ ] **Review and merge the site version stamp PR** the release opened
+      (`Stamp Antora site version vX.Y.Z to match released PDF`). The site
+      version does not track the PDF until you do. The values are generated from
+      `release-info.sh`, so this wants a merge, not an edit.
+- [ ] After it merges, confirm the site renders at `/<component>/<version>/` with
+      a cover reading `Version vX.Y.Z, YYYY-MM-DD: <Display>` — identical to the
+      PDF title page.
 - [ ] **Releasing locally or offline?** The CI stamp doesn't run, so do it by
       hand or the site version silently lags the PDF:
       ```bash

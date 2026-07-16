@@ -45,6 +45,5 @@ asciidoc:
     page-revnumber: v0.0.0
     page-revdate: 2026-07-14
     page-phase: draft-and-development
-    page-phase-display: Draft and Development
-    page-phase-notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration
-      are encouraged as nothing is final, and adjustments may be frequent.
+    page-phase-display: 'Draft and Development'
+    page-phase-notice: 'Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.'
