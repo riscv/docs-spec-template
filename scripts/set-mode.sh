@@ -43,6 +43,12 @@ awk -v t="$target" '
 mv "$tmp" "$docmode_file"
 
 # --- 2. Reconcile antora.yml page-phase* keys. --------------------------------
+# FRAGILE: the awk below assumes the template's 4-space antora.yml indentation
+# for the page-phase* block -- the `/^    page-phase.../` anchors and the
+# `RLENGTH > 4` wrapped-continuation test both hard-code that depth (matching
+# stamp-antora-version.sh). If antora.yml is ever reindented (2-space, tabs),
+# update those anchors here and in stamp-antora-version.sh together. The CI
+# doc-mode smoke job (build-pdf.yml) round-trips this script to catch drift.
 has_phase() { grep -qE '^[[:space:]]*page-phase:' "$antora_yml"; }
 
 if [[ "$target" == "doc" ]]; then

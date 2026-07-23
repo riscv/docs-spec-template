@@ -181,6 +181,58 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
         if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'
 
+  # Doc-mode smoke build. The `build` job above exercises the committed mode
+  # (spec by default); now that the template ships two modes, build the OTHER
+  # path on every PR too, so a change that only breaks doc mode can't merge
+  # green. Uses a DOC_MODE=doc env override (never edits committed .docmode) and
+  # asserts a PDF lands -- it publishes and releases nothing. Also round-trips
+  # set-mode.sh (spec -> doc -> spec) to guard the fragile antora.yml awk.
+  # PR-only so it never interferes with release/tag builds or the stamp job.
+  doc-mode-smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Pull Container
+        run: docker pull riscvintl/riscv-docs-base-container-image:latest
+
+      - name: Build in doc mode
+        run: |
+          set -euo pipefail
+          # Env override builds the doc path without touching the committed mode.
+          make DOC_MODE=doc
+          shopt -s nullglob
+          pdfs=(build/*.pdf)
+          if [ "${#pdfs[@]}" -eq 0 ]; then
+            echo "doc-mode smoke FAILED: no PDF produced" >&2
+            exit 1
+          fi
+          echo "doc-mode smoke OK: ${pdfs[*]}"
+
+      - name: Round-trip set-mode.sh (spec -> doc -> spec)
+        run: |
+          set -euo pipefail
+          has_phase() { grep -qE '^[[:space:]]*page-phase:' antora.yml; }
+          # doc mode must STRIP the page-phase* block ...
+          scripts/set-mode.sh doc
+          if has_phase; then
+            echo "set-mode FAILED: doc mode left page-phase* in antora.yml" >&2
+            exit 1
+          fi
+          # ... and switching back to spec must RESTORE it. A broken awk (e.g. an
+          # indentation-assumption regression) fails one of these directions.
+          scripts/set-mode.sh spec
+          if ! has_phase; then
+            echo "set-mode FAILED: spec mode did not restore page-phase* in antora.yml" >&2
+            exit 1
+          fi
+          echo "set-mode round-trip OK"
+
   # Keep the Antora HTML site version in EXACT lockstep with the PDF this run just
   # built: stamp the SAME resolved version/date into antora.yml on main, so the
   # central playbook publishes the version the PDF carries. The PDF and this stamp
