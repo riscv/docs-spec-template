@@ -43,7 +43,57 @@ is the sequence of actions; ANTORA.md is the rationale.
 
 ---
 
-# Part A — ARC PDF compliance
+# Choose your mode
+
+This template runs in two modes (see `ANTORA.md` §"Template modes"), selected by
+the committed `.docmode` file:
+
+- **`spec` mode** (default) — ratified RISC-V specifications on the ARC/P&P
+  process. Follow **all** of Parts A, B, and C below.
+- **`doc` mode** — non-ratified documentation that still needs the PDF, the
+  Makefile HTML, and the Antora site, but **no** ratification layer (no milestone
+  phases, no "Document State" preface, no ARC submission). Example:
+  [`riscv/docs-dev-guide`](https://github.com/riscv/docs-dev-guide).
+
+Parts A and C are written for `spec` mode. **Doc-mode migrators**: use the
+condensed checklist below instead of reading A/C top to bottom — the toolchain is
+already mode-aware, so most of the work is the shared Antora layout in Part B.
+
+## Doc-mode checklist
+
+1. [ ] **Set the mode.** Add a `.docmode` file at the repo root containing
+       `doc`. This single file makes `release-info.sh`, the `Makefile`, the stamp
+       script, and CI all skip the ratification layer. (An admin creating a fresh
+       repo from the template does this once; a migrating repo adds it here.) If a
+       repo already has an `antora.yml`, prefer `make set-mode MODE=doc`, which
+       flips `.docmode` **and** reconciles the descriptor's `page-phase*` block in
+       one step; the mode is reversible either way.
+2. [ ] **Sync the toolchain** (Part A, Steps 1–3): take the upstream
+       `scripts/release-info.sh`, `Makefile`, and `.github/workflows/build-pdf.yml`.
+       They read `.docmode` and neutralize the phase/milestone surface
+       automatically — you do **not** need the ARC milestone semantics.
+3. [ ] **Update your top-level `.adoc` assembler** (Part A, Step 5) to the
+       dual-source form, **and** wrap the ratification-only bits in
+       `ifndef::doc-mode[] … endif::[]`: the `[preface] == Document State` block
+       and the `spec-state` `revremark` default (see `src/spec-sample.adoc` for
+       the exact guards).
+4. [ ] **Do the whole of Part B** (the Antora site): dual-source layout,
+       `antora.yml`, `modules/ROOT/nav.adoc`, local preview tooling, central
+       playbook registration, and the content-source CI gate. **One difference:**
+       in `antora.yml`, omit the `page-phase`, `page-phase-display`, and
+       `page-phase-notice` attributes — doc mode has no phase. The cover page and
+       stamp script already tolerate their absence.
+5. [ ] **Skip Part C** (ARC submission) and `SPEC_STATE.md` / `ARC_SUBMISSION.md`
+       — they do not apply. Cut releases by tagging `vX.Y.Z`; the PDF and site
+       version track the tag + build date, and version-bot does plain patch bumps
+       (no milestone PRs).
+6. [ ] **Verify** (Part B, Step 6 + the site steps): `make` produces a PDF with
+       **no** "Document State" page; `npm run preview` renders a cover with no
+       phase banner.
+
+---
+
+# Part A — ARC PDF compliance *(spec mode; doc mode: see the checklist above)*
 
 ## Step 1 — Sync `scripts/release-info.sh`
 
@@ -436,7 +486,7 @@ file.
 
 ---
 
-# Part C — Release and submit
+# Part C — Release and submit *(spec mode only; doc mode: tag `vX.Y.Z` and skip)*
 
 ## Step 14 — Cut your next release
 

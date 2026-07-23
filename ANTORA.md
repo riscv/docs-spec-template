@@ -14,6 +14,46 @@ to finish that migration.
 - Build the PDF: `make` → `build/<short>-v<ver>-<YYYYMMDD>.pdf`.
 - Build the site locally: `antora antora-playbook.yml` → `build/site/`.
 
+## Template modes: `spec` vs `doc`
+
+This template runs in one of two modes, selected once by the committed
+`.docmode` file at the repo root (a RISC-V admin sets it when the repo is
+created; authors never touch it). If `.docmode` is absent, the mode is `spec` —
+so existing spec repos are unaffected.
+
+| | `spec` (default) | `doc` |
+|---|---|---|
+| Intended for | Ratified RISC-V specifications (ARC/P&P process) | Non-ratified documentation (e.g. the Docs Dev Guide) |
+| ARC PDF | ✅ `<short>-vX.Y.Z-YYYYMMDD.pdf` | ✅ same filename form |
+| Makefile HTML | ✅ | ✅ |
+| Antora site | ✅ | ✅ |
+| Version scheme | semver tags → milestone phase gates | semver tags + build date, **no** phase gates |
+| "Document State" preface (PDF) | ✅ | ❌ omitted |
+| Phase banner + `spec-state` link (site cover) | ✅ | ❌ omitted |
+| Milestone version-bot / milestone PRs | ✅ | ❌ inert (plain patch bumps) |
+| `SPEC_STATE.md`, `ARC_SUBMISSION.md` | apply | not used |
+
+**How the switch flows.** `scripts/release-info.sh` reads `.docmode` and, in
+`doc` mode, returns an empty phase/display/notice/milestone (the shared version
+plumbing is unchanged). The `Makefile` reads/exports `DOC_MODE` and, in `doc`
+mode, passes the `doc-mode` AsciiDoc attribute so `src/*.adoc` omits the
+"Document State" preface. The Antora cover page (`modules/ROOT/pages/index.adoc`)
+guards its phase suffix/banner on `ifdef::page-phase-*`, and
+`scripts/stamp-antora-version.sh` requires only `version`/`page-revnumber`/
+`page-revdate` in `doc` mode (no `page-phase*` keys). CI ignores the milestone
+`target_phase` inputs in `doc` mode.
+
+**Changing mode after setup.** The mode is reversible — if it was set in error you
+do **not** need to recreate the repo. Run `make set-mode MODE=doc` (or `MODE=spec`).
+It flips `.docmode` and reconciles `antora.yml` in one step: the two modes expect a
+different descriptor shape (spec carries the `page-phase*` cover attributes; doc
+omits them), so the helper strips or re-inserts that block and re-stamps. It leaves
+content files (`SPEC_STATE.md`, `ARC_SUBMISSION.md`) and git tags alone, printing a
+reminder instead. Commit the resulting `.docmode` + `antora.yml`.
+
+To migrate an existing documentation repo to `doc` mode, see the "doc-mode path"
+in `MIGRATION.md`.
+
 ## The dual-source technique (why it works)
 
 The PDF wants one master document; Antora wants one file per navigable page.
@@ -265,6 +305,7 @@ unnumbered back matter).
 ```bash
 make                          # ARC PDF (+ HTML) via Docker; VERSION/DATE overridable
 make stamp-antora VERSION=vX.Y.Z   # stamp antora.yml to match the PDF release (commit the result)
+make set-mode MODE=doc        # switch template mode in place (spec|doc); reconciles antora.yml
 
 # Local Antora preview (renders like production: diagrams + math):
 npm install                   # one-time: Antora + kroki/mathjax extensions

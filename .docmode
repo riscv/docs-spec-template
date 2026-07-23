@@ -1,0 +1,9 @@
+spec
+# Template mode for this repository. Keep the value on the FIRST line above.
+# One of:
+#   spec  - ratified RISC-V specification (ARC / Policies & Procedures process). Default.
+#   doc   - non-ratified documentation: Antora-ready with PDF + Makefile HTML,
+#           but no ratification layer (no milestone phases, no "Document State"
+#           page, no ARC submission).
+# An admin sets this ONCE when creating the repo; authors never touch it.
+# See ANTORA.md "Template modes: spec vs doc" for details.

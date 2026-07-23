@@ -69,6 +69,9 @@ jobs:
           latest="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
           latest="${latest:-v0.0.0}"
 
+          # Doc mode (non-ratified) has no milestone floors; ignore target_phase.
+          mode="$(awk 'NF && $1 !~ /^#/ { print $1; exit }' .docmode 2>/dev/null || echo spec)"
+
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$REF_NAME" != "main" ]]; then
               echo "Manual version jump must run against main." >&2
@@ -77,7 +80,7 @@ jobs:
 
             if [[ -n "${RELEASE_VERSION:-}" ]]; then
               next="$(./scripts/release-info.sh normalize "$RELEASE_VERSION")"
-            elif [[ -n "${TARGET_PHASE:-}" && "$TARGET_PHASE" != "auto-next" ]]; then
+            elif [[ "$mode" != "doc" && -n "${TARGET_PHASE:-}" && "$TARGET_PHASE" != "auto-next" ]]; then
               next="$(./scripts/release-info.sh phase-floor-version "$TARGET_PHASE")"
             else
               next="$(./scripts/release-info.sh next "$latest")"

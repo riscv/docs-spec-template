@@ -6,6 +6,18 @@ DEFAULT_PHASE="draft-and-development"
 SPEC_STATE_URL="http://riscv.org/spec-state"
 MAX_PATCH_BEFORE_MINOR_BUMP="${MAX_PATCH_BEFORE_MINOR_BUMP:-99}"
 
+# Template mode: "spec" (ratified, ARC/P&P milestones) or "doc" (non-ratified
+# documentation -- Antora-ready but no ratification layer). Selected once by the
+# committed .docmode file at the repo root; absent => "spec" (backward
+# compatible). In "doc" mode the phase/milestone surface below goes neutral --
+# the version scheme (semver tags + build date) is shared and unchanged.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Read the first non-blank, non-comment token so .docmode can self-document with
+# trailing `#` comments. Missing file or empty value => "spec" (safe default;
+# every reader treats a non-"doc" value as spec).
+DOC_MODE="${DOC_MODE:-$(awk 'NF && $1 !~ /^#/ { print $1; exit }' "$SCRIPT_DIR/../.docmode" 2>/dev/null || echo spec)}"
+doc_mode() { [[ "$DOC_MODE" == "doc" ]]; }
+
 usage() {
   cat <<'USAGE'
 Usage: scripts/release-info.sh [version|normalize|next|phase|phase-floor-version|display|milestone|notice|revremark|all] [value]
@@ -66,7 +78,8 @@ next_version() {
   read -r major minor patch <<<"$(parse_version "$1")"
 
   # Progress pre-1.0 development by rolling patch to the next minor at .99.
-  if (( major == 0 && minor < 99 && patch >= MAX_PATCH_BEFORE_MINOR_BUMP )); then
+  # Doc mode has no milestone semantics -- always a plain patch bump.
+  if ! doc_mode && (( major == 0 && minor < 99 && patch >= MAX_PATCH_BEFORE_MINOR_BUMP )); then
     minor=$((minor + 1))
     patch=0
   else
@@ -110,6 +123,7 @@ phase_display_for_phase() {
   # Title-case display label rendered on the PDF title page and in the body
   # NOTE admonition. The canonical (lowercase, hyphenated) ID stays usable for
   # filenames, scripts, and machine-readable consumers; this is the human form.
+  if doc_mode; then echo ""; return 0; fi
   case "$1" in
     "draft-and-development") echo "Draft and Development" ;;
     "development-complete")  echo "Development Complete"  ;;
@@ -124,6 +138,9 @@ phase_display_for_phase() {
 
 phase_for_version() {
   local v="$1"
+
+  # Non-ratified docs have no milestone gates: emit no phase.
+  if doc_mode; then echo ""; return 0; fi
 
   if ! version_valid "$v"; then
     echo "$DEFAULT_PHASE"
@@ -150,6 +167,7 @@ phase_for_version() {
 }
 
 milestone_for_phase() {
+  if doc_mode; then echo ""; return 0; fi
   case "$1" in
     "development-complete")
       echo "v0.6.x development-complete"
@@ -176,6 +194,7 @@ milestone_for_phase() {
 }
 
 phase_floor_version() {
+  if doc_mode; then echo ""; return 0; fi
   case "$1" in
     "draft-and-development")
       echo "v0.0.1"
@@ -206,6 +225,7 @@ phase_floor_version() {
 }
 
 notice_for_phase() {
+  if doc_mode; then echo ""; return 0; fi
   case "$1" in
     "draft-and-development"|"development-complete")
       echo "Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent."
