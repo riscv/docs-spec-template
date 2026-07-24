@@ -181,7 +181,7 @@ unnumbered back matter).
   attributes configure (kroki, mathjax, ASAM bib) land in Phase 5, so the
   attributes are inert in bare local preview until then.
 - [x] **Phase 4 — Version bridge.** The ARC Author Guide requires the artifact's
-  identity to be the `vX.Y.Z` release tag; the HTML site version must match the
+  identity to be the `vX.Y` release tag; the HTML site version must match the
   PDF version exactly. Because Antora reads a STATIC `version:` from the committed
   `antora.yml` (the central playbook just fetches the branch — no build step runs
   `release-info.sh` on the spec side), the bridge *stamps* that file, the Antora
@@ -196,12 +196,12 @@ unnumbered back matter).
   * `index.adoc` cover renders the PDF title-page revision line verbatim:
     `Version {page-revnumber}, {page-revdate}: {page-phase-display}`, plus a phase
     banner mirroring the PDF "Document State" preface. No hardcoded version.
-  * Verified: stamping `v0.8.0` yields `/spec-sample/v0.8.0/` with cover
-    "Version v0.8.0, 2026-06-12: Stabilized"; restamped to the repo's real state.
+  * Verified: stamping `v0.8` yields `/spec-sample/v0.8/` with cover
+    "Version v0.8, 2026-06-12: Stabilized"; restamped to the repo's real state.
   * **Release step:** automated in `build-pdf.yml` (see Phase 6) — the same run
     that builds the PDF stamps the matching version and opens a review PR against
     `main`; merging it is part of cutting a release. Manual fallback for
-    local/offline releases: `make stamp-antora VERSION=vX.Y.Z` then commit
+    local/offline releases: `make stamp-antora VERSION=vX.Y` then commit
     `antora.yml`.
   * **Hardening:** the stamp script asserts that each key was substituted exactly
     once and that the result still parses as YAML, then fails loudly. It
@@ -264,7 +264,7 @@ unnumbered back matter).
 
 ```bash
 make                          # ARC PDF (+ HTML) via Docker; VERSION/DATE overridable
-make stamp-antora VERSION=vX.Y.Z   # stamp antora.yml to match the PDF release (commit the result)
+make stamp-antora VERSION=vX.Y   # stamp antora.yml to match the PDF release (commit the result)
 
 # Local Antora preview (renders like production: diagrams + math):
 npm install                   # one-time: Antora + kroki/mathjax extensions

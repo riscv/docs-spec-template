@@ -1,7 +1,7 @@
 = RISC-V Example Specification Document (Zexmpl)
 Authors: Author 1, Author 2
 include::../docs-resources/global-config.adoc[]
-ifndef::revnumber[:revnumber: v0.0.0]
+ifndef::revnumber[:revnumber: v0.0]
 ifndef::revdate[:revdate: 1/2023]
 ifndef::phase[:phase: draft-and-development]
 ifndef::phase_display[:phase_display: {phase}]

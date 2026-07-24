@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stamp the Antora component descriptor (antora.yml) with the current release
 # version and phase so the HTML site version stays in EXACT lockstep with the
-# ARC submission PDF, per the ARC Author Guide (version = the vX.Y.Z tag; the
+# ARC submission PDF, per the ARC Author Guide (version = the vX.Y tag; the
 # title-page revision line is "Version <ver>, <date>: <Display>").
 #
 # The PDF derives its version dynamically at build time from the git tag via
@@ -10,7 +10,7 @@
 # analogue of scripts/update-spec-state.sh (which stamps SPEC_STATE.md).
 #
 # Usage: scripts/stamp-antora-version.sh [version] [date]
-#   version  vX.Y.Z (default: scripts/release-info.sh version -> latest tag)
+#   version  vX.Y (default: scripts/release-info.sh version -> latest tag)
 #   date     YYYY-MM-DD (default: today)
 #
 # Idempotent: it replaces the values of existing keys in antora.yml in place and
@@ -24,7 +24,7 @@ antora_yml="$repo_root/antora.yml"
 version="${1:-$("$here/release-info.sh" version)}"
 date="${2:-$(date +%Y-%m-%d)}"
 
-# Normalise and validate the version (vX.Y.Z) through the shared helper.
+# Normalise and validate the version (vX.Y) through the shared helper.
 version="$("$here/release-info.sh" normalize "$version")"
 
 phase="$("$here/release-info.sh" phase "$version")"

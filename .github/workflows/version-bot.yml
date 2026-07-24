@@ -21,10 +21,9 @@ on:
           - stabilized
           - frozen
           - ratification-ready
-          - publication
           - ratified
       release_version:
-        description: Explicit version override (e.g., v0.9.0). If set, target_phase is ignored.
+        description: Explicit version override (e.g., v0.9). If set, target_phase is ignored.
         required: false
         type: string
       allow_non_monotonic:
@@ -66,8 +65,33 @@ jobs:
 
           git fetch --tags --force
 
-          latest="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
-          latest="${latest:-v0.0.0}"
+          # Highest existing tag by DECIMAL order. Never use `git ... --sort` or
+          # `sort -V` here: they order the fractional part component-wise and rank
+          # v0.8 below v0.61. release-info.sh compares by centi-value.
+          latest="$(./scripts/release-info.sh latest)"
+
+          # Auto-increment (`next`) refuses at a milestone gate with rc=10: the
+          # 0.01 band before the next manual milestone is exhausted. That is not
+          # an error -- it means "a maintainer must cut the milestone" -- so we
+          # emit a notice and finish without tagging. Sets the global `next`;
+          # returns non-zero (band exhausted) to signal "stop, no tag". Kept out
+          # of $(...) so the ::notice:: reaches the workflow log.
+          compute_next() {
+            local base="$1" out rc
+            # Capture rc from the substitution itself (a bare `if ...; fi` with no
+            # else would leave $? as the if-statement's 0, masking rc=10).
+            out="$(./scripts/release-info.sh next "$base" 2>/tmp/next.err)" && rc=0 || rc=$?
+            if [[ "$rc" -eq 0 ]]; then
+              next="$out"
+              return 0
+            fi
+            if [[ "$rc" -eq 10 ]]; then
+              echo "::notice::$(cat /tmp/next.err) No tag created."
+              return 1
+            fi
+            cat /tmp/next.err >&2
+            exit "$rc"
+          }
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$REF_NAME" != "main" ]]; then
@@ -80,20 +104,19 @@ jobs:
             elif [[ -n "${TARGET_PHASE:-}" && "$TARGET_PHASE" != "auto-next" ]]; then
               next="$(./scripts/release-info.sh phase-floor-version "$TARGET_PHASE")"
             else
-              next="$(./scripts/release-info.sh next "$latest")"
+              compute_next "$latest" || exit 0
             fi
           else
             existing="$(git tag --points-at HEAD --list 'v*' | head -n1 || true)"
             if [[ -n "$existing" ]]; then
-              next="$existing"
+              next="$(./scripts/release-info.sh normalize "$existing")"
             else
-              next="$(./scripts/release-info.sh next "$latest")"
+              compute_next "$latest" || exit 0
             fi
           fi
 
           if [[ "${ALLOW_NON_MONOTONIC:-false}" != "true" ]]; then
-            highest="$(printf '%s\n%s\n' "${latest#v}" "${next#v}" | sort -V | tail -n1)"
-            if [[ "$highest" != "${next#v}" ]]; then
+            if [[ "$(./scripts/release-info.sh compare "$next" "$latest")" == "-1" ]]; then
               echo "Refusing non-monotonic jump from $latest to $next. Set allow_non_monotonic=true to override." >&2
               exit 1
             fi

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: Override version (e.g., v0.8.2). Milestone floors become official releases.
+        description: Override version (e.g., v0.62). Milestone floors become official releases.
         required: false
         type: string
       target_phase:
@@ -21,7 +21,6 @@ on:
           - stabilized
           - frozen
           - ratification-ready
-          - publication
           - ratified
       draft:
         description: Create release as a draft?
@@ -62,30 +61,40 @@ jobs:
         id: set_build_version
         run: |
           set -euo pipefail
+
+          # Auto-increment (`next`) refuses at a milestone gate with rc=10 (the
+          # 0.01 band before the next manual milestone is exhausted). For a
+          # preview/non-release build that is not fatal: fall back to rebuilding
+          # the latest tag rather than failing the run.
+          next_or_latest() {
+            local base="$1" out
+            if out="$(./scripts/release-info.sh next "$base" 2>/dev/null)"; then
+              printf '%s\n' "$out"
+            else
+              printf '%s\n' "$base"
+            fi
+          }
+
           if [ -n "${{ github.event.inputs.release_version }}" ]; then
-            version="${{ github.event.inputs.release_version }}"
+            version="$(./scripts/release-info.sh normalize "${{ github.event.inputs.release_version }}")"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
             version="$(./scripts/release-info.sh phase-floor-version "${{ github.event.inputs.target_phase }}")"
           elif [ "${{ github.ref_type }}" = "tag" ]; then
-            version="${{ github.ref_name }}"
+            version="$(./scripts/release-info.sh normalize "${{ github.ref_name }}")"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            latest="$(./scripts/release-info.sh version)"
+            latest="$(./scripts/release-info.sh latest)"
             latest_phase="$(./scripts/release-info.sh phase "$latest")"
             latest_floor="$(./scripts/release-info.sh phase-floor-version "$latest_phase")"
-            if [ "$latest" != "v0.0.0" ] && [ "$latest" != "$latest_floor" ]; then
+            if [ "$latest" != "v0.0" ] && [ "$latest" != "$latest_floor" ]; then
               # If current tag is between milestone floors, rebuild/re-release current latest tag.
               version="$latest"
             else
-              version="$(./scripts/release-info.sh next "$latest")"
+              version="$(next_or_latest "$latest")"
             fi
           else
-            latest="$(./scripts/release-info.sh version)"
-            version="$(./scripts/release-info.sh next "$latest")"
+            latest="$(./scripts/release-info.sh latest)"
+            version="$(next_or_latest "$latest")"
           fi
-          case "$version" in
-            v*) ;;
-            *) version="v$version" ;;
-          esac
           # Resolve the build date ONCE so the PDF and the Antora version stamp
           # share it exactly (no midnight-boundary drift between separate steps).
           date="$(date +%Y-%m-%d)"
@@ -97,16 +106,14 @@ jobs:
       - name: Classify release type
         run: |
           set -euo pipefail
-          # Milestone-gate tags get a non-prerelease GitHub Release.
-          # v0.99.1 is the entry into publication, so it is also considered official.
-          case "${VERSION}" in
-            v0.6.0|v0.8.0|v0.9.0|v0.99.0|v0.99.1|v1.0.0)
-              echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
-              ;;
-            *)
-              echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
-              ;;
-          esac
+          # Milestone-gate tags (v0.6, v0.8, v0.9, v0.99, v1.0) get a
+          # non-prerelease GitHub Release. release-info.sh is the single source of
+          # truth for which versions are milestones.
+          if ./scripts/release-info.sh is-milestone "${VERSION}"; then
+            echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
+          else
+            echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
+          fi
 
       # Build Files. VERSION and DATE are exported so the Makefile and
       # release-info.sh produce ARC-compliant PDF names: <short>-v<ver>-<YYYYMMDD>.pdf
@@ -224,10 +231,11 @@ jobs:
 
           # Monotonic guard: never stamp main backwards (e.g. when an old tag is
           # rebuilt). Skip if main is already at a version >= this release.
+          # Compare by DECIMAL order via release-info.sh -- `sort -V` would rank
+          # v0.8 below v0.61 and stamp the site backwards.
           if [ -n "$current" ] && [ "$current" != "~" ] && [ "$current" != "$VERSION" ]; then
-            highest="$(printf '%s\n%s\n' "${current#v}" "${VERSION#v}" | sort -V | tail -n1)"
-            if [ "$highest" = "${current#v}" ]; then
-              echo "main is already at $current (>= $VERSION); skipping stamp."
+            if [ "$(./scripts/release-info.sh compare "$current" "$VERSION")" = "1" ]; then
+              echo "main is already at $current (> $VERSION); skipping stamp."
               echo "changed=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi

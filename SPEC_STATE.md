@@ -2,16 +2,16 @@
 
 Current milestone: Draft and Development
 Current state: Draft and Development
-Current version: v0.0.0
+Current version: v0.0
 Last updated: 2026-02-19
 
 ## Milestone Targets
 
-- v0.6.x Developed
-- v0.8.x Stable
-- v0.9.x Frozen
-- v0.99.x Ratification-Ready
-- v1.0.0 Ratified
+- v0.6 Developed
+- v0.8 Stable
+- v0.9 Frozen
+- v0.99 Ratification-Ready
+- v1.0 Ratified
 
 ## State Definitions
 

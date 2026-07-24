@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#
+# Tests for scripts/release-info.sh -- the 2-digit (fixed-point decimal) release
+# metadata helper. These lock the subtle bits: DECIMAL ordering (v0.8 > v0.61,
+# which sort -V gets wrong), the +0.01 auto-increment, the milestone guard that
+# refuses to auto-mint a manual gate, phase detection, and normalization.
+#
+# Run: tests/release-info-test.sh   (exit 0 = all passed)
+set -uo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RI="$here/../scripts/release-info.sh"
+
+pass=0
+fail=0
+
+# ok <description> <expected> <actual>
+ok() {
+  local desc="$1" expected="$2" actual="$3"
+  if [[ "$actual" == "$expected" ]]; then
+    pass=$(( pass + 1 ))
+  else
+    fail=$(( fail + 1 ))
+    printf 'FAIL: %s\n  expected: %q\n  actual:   %q\n' "$desc" "$expected" "$actual"
+  fi
+}
+
+# rc <description> <expected-rc> <command...>
+rc() {
+  local desc="$1" expected="$2"; shift 2
+  "$@" >/dev/null 2>&1
+  local actual=$?
+  if [[ "$actual" == "$expected" ]]; then
+    pass=$(( pass + 1 ))
+  else
+    fail=$(( fail + 1 ))
+    printf 'FAIL: %s\n  expected rc: %s\n  actual rc:   %s\n' "$desc" "$expected" "$actual"
+  fi
+}
+
+# --- decimal ordering (the sort -V / git version-sort trap) -----------------
+ok "compare v0.8 > v0.61"        1  "$("$RI" compare v0.8 v0.61)"
+ok "compare v0.61 < v0.8"       -1  "$("$RI" compare v0.61 v0.8)"
+ok "compare v0.6 == v0.60"       0  "$("$RI" compare v0.6 v0.60)"
+ok "compare v0.99 > v0.9"        1  "$("$RI" compare v0.99 v0.9)"
+ok "compare v1.0 > v0.99"        1  "$("$RI" compare v1.0 v0.99)"
+ok "compare v0.9 > v0.89"        1  "$("$RI" compare v0.9 v0.89)"
+ok "max v0.8 v0.61 = v0.8"    v0.8  "$("$RI" max v0.8 v0.61)"
+ok "max v0.70 v0.9 = v0.9"    v0.9  "$("$RI" max v0.70 v0.9)"
+
+# --- normalization / canonical form -----------------------------------------
+ok "normalize v0.60 -> v0.6"  v0.6   "$("$RI" normalize v0.60)"
+ok "normalize v0.6 -> v0.6"   v0.6   "$("$RI" normalize v0.6)"
+ok "normalize v0.7 -> v0.70"  v0.70  "$("$RI" normalize v0.7)"
+ok "normalize 0.99 -> v0.99"  v0.99  "$("$RI" normalize 0.99)"
+ok "normalize v1.0 -> v1.0"   v1.0   "$("$RI" normalize v1.0)"
+ok "normalize v0.0 -> v0.0"   v0.0   "$("$RI" normalize v0.0)"
+
+# --- auto-increment (+0.01) --------------------------------------------------
+ok "next v0.6 -> v0.61"   v0.61  "$("$RI" next v0.6)"
+ok "next v0.61 -> v0.62"  v0.62  "$("$RI" next v0.61)"
+ok "next v0.69 -> v0.70"  v0.70  "$("$RI" next v0.69)"
+ok "next v0.05 -> v0.06"  v0.06  "$("$RI" next v0.05)"
+ok "next v0.0 -> v0.01"   v0.01  "$("$RI" next v0.0)"
+ok "next v0.9 -> v0.91"   v0.91  "$("$RI" next v0.9)"
+
+# --- milestone guard: auto-increment must never mint a manual gate ----------
+rc "next v0.59 refuses v0.6"   10  "$RI" next v0.59
+rc "next v0.79 refuses v0.8"   10  "$RI" next v0.79
+rc "next v0.89 refuses v0.9"   10  "$RI" next v0.89
+rc "next v0.98 refuses v0.99"  10  "$RI" next v0.98
+rc "next v0.99 refuses v1.0"   10  "$RI" next v0.99
+rc "next v1.0 has no successor"  2  "$RI" next v1.0
+
+# --- is-milestone ------------------------------------------------------------
+rc "v0.6 is a milestone"    0  "$RI" is-milestone v0.6
+rc "v0.8 is a milestone"    0  "$RI" is-milestone v0.8
+rc "v0.9 is a milestone"    0  "$RI" is-milestone v0.9
+rc "v0.99 is a milestone"   0  "$RI" is-milestone v0.99
+rc "v1.0 is a milestone"    0  "$RI" is-milestone v1.0
+rc "v0.61 not a milestone"  1  "$RI" is-milestone v0.61
+rc "v0.7 not a milestone"   1  "$RI" is-milestone v0.7
+
+# --- phase detection (state achieved) ---------------------------------------
+ok "phase v0.0"   draft-and-development  "$("$RI" phase v0.0)"
+ok "phase v0.3"   draft-and-development  "$("$RI" phase v0.3)"
+ok "phase v0.59"  draft-and-development  "$("$RI" phase v0.59)"
+ok "phase v0.6"   development-complete   "$("$RI" phase v0.6)"
+ok "phase v0.72"  development-complete   "$("$RI" phase v0.72)"
+ok "phase v0.8"   stabilized             "$("$RI" phase v0.8)"
+ok "phase v0.85"  stabilized             "$("$RI" phase v0.85)"
+ok "phase v0.9"   frozen                 "$("$RI" phase v0.9)"
+ok "phase v0.98"  frozen                 "$("$RI" phase v0.98)"
+ok "phase v0.99"  ratification-ready     "$("$RI" phase v0.99)"
+ok "phase v1.0"   ratified               "$("$RI" phase v1.0)"
+
+# --- phase floors round-trip -------------------------------------------------
+ok "floor draft-and-development" v0.0   "$("$RI" phase-floor-version draft-and-development)"
+ok "floor development-complete"  v0.6   "$("$RI" phase-floor-version development-complete)"
+ok "floor stabilized"            v0.8   "$("$RI" phase-floor-version stabilized)"
+ok "floor frozen"                v0.9   "$("$RI" phase-floor-version frozen)"
+ok "floor ratification-ready"    v0.99  "$("$RI" phase-floor-version ratification-ready)"
+ok "floor ratified"              v1.0   "$("$RI" phase-floor-version ratified)"
+
+# --- display labels ----------------------------------------------------------
+ok "display v0.8"  Stabilized  "$("$RI" display v0.8)"
+ok "display v1.0"  Ratified    "$("$RI" display v1.0)"
+
+# --- publication milestone is gone ------------------------------------------
+rc "publication is not a valid phase floor"  2  "$RI" phase-floor-version publication
+
+# --- 3-digit input is rejected ----------------------------------------------
+rc "normalize rejects v0.6.0"  2  "$RI" normalize v0.6.0
+rc "normalize rejects v0.99.1" 2  "$RI" normalize v0.99.1
+
+printf '\n%d passed, %d failed\n' "$pass" "$fail"
+[[ "$fail" -eq 0 ]]
