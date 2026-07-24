@@ -9,9 +9,9 @@ forked from `docs-spec-template` or shares its toolchain (Makefile +
 source tree, and a spec author needs both:
 
 1. **The ARC submission PDF.** ARC rejects submissions that do not emit a PDF
-   named `<short>-v<X.Y.Z>-<YYYYMMDD>.pdf` whose title page matches, using six
-   canonical milestone IDs (`development-complete`, `stabilized`, `frozen`,
-   `ratification-ready`, `publication`, `ratified`).
+   named `<short>-v<MAJOR>.<MINOR>-<YYYYMMDD>.pdf` whose title page matches,
+   using the canonical milestone IDs (`development-complete`, `stabilized`,
+   `frozen`, `ratification-ready`, `ratified`).
 2. **The Antora HTML site.** Chapter content is consumed as a *content source*
    by the RISC-V central playbook and published on antora.riscv.org. The ARC
    Author Guide requires the site version to match the PDF version **exactly**.
@@ -30,8 +30,9 @@ is the sequence of actions; ANTORA.md is the rationale.
 - [ ] Skim `ANTORA.md` §"The dual-source technique" and §"Production model".
 - [ ] Confirm your repo's spec short name (e.g. `Zifoo`, `Server-Platform`,
       `RHTI`). This is the `<spec-short>` that appears in PDF filenames.
-- [ ] Check the latest tag in your repo (`git tag --list 'v*' --sort=-version:refname | head -1`).
-      Your next tag MUST be monotonically greater.
+- [ ] Check the latest tag in your repo (`./scripts/release-info.sh latest`).
+      Your next tag MUST be monotonically greater (decimal order: `v0.8` > `v0.79`).
+      Do NOT use `git ... --sort=version:refname` — it ranks `v0.8` below `v0.61`.
 - [ ] **Do NOT rewrite or delete existing tags.** The policy is
       forward-looking; old artifacts stay as-is.
 
@@ -51,14 +52,19 @@ Replace your script with the upstream version, or apply the following changes:
 
 - [ ] Phase IDs switched from `Developed`/`Stable`/`Frozen`/`Ratification-Ready`/`Ratified`
       to the canonical (lowercase, hyphenated) IDs
-      `development-complete`/`stabilized`/`frozen`/`ratification-ready`/`publication`/`ratified`.
-- [ ] New `publication` band added at `v0.99.1+` (between `ratification-ready`
-      at `v0.99.0` and `ratified` at `v1.0.0`).
+      `development-complete`/`stabilized`/`frozen`/`ratification-ready`/`ratified`.
+- [ ] Versions are two-digit `vMAJOR.MINOR` as a fixed-point decimal
+      (`v0.6` = 0.60, `v1.0` = 1.00). Comparison is decimal, not semver, so the
+      script compares by centi-value — never `sort -V`/`git ... --sort`, which
+      rank `v0.8` below `v0.61`. Use the `compare`/`max`/`latest` subcommands.
+- [ ] Milestone gates are `v0.6`, `v0.8`, `v0.9`, `v0.99`, `v1.0`. `next`
+      advances by `0.01` and REFUSES (exit 10) when the next step would land on
+      a gate — gates are cut manually via `workflow_dispatch`.
 - [ ] New helper `phase_display_for_phase` returns the title-case display
       label (e.g. `Stabilized`, `Ratification-Ready`) used on the title page.
 - [ ] `revremark_for_phase` is now a thin wrapper that returns just the
       display label (e.g. `"Ratified"`), so asciidoctor-pdf renders
-      `Version vX.Y.Z, YYYY-MM-DD: <Label>` on the title page.
+      `Version vX.Y, YYYY-MM-DD: <Label>` on the title page.
 - [ ] `display` CLI command returns the display label (title-case), not the
       canonical ID.
 - [ ] `notice_for_phase`, `phase_floor_version`, `milestone_for_phase` all
@@ -70,7 +76,7 @@ the PDF build and the Antora version stamp (Step 12) both call it. Sync it first
 
 Smoke test:
 ```bash
-for v in v0.5.0 v0.6.0 v0.7.3 v0.8.0 v0.9.0 v0.99.0 v0.99.1 v1.0.0; do
+for v in v0.5 v0.6 v0.73 v0.8 v0.9 v0.99 v1.0; do
   printf "%-10s phase=%-22s display=%s\n" "$v" \
     "$(./scripts/release-info.sh phase $v)" \
     "$(./scripts/release-info.sh display $v)"
@@ -78,14 +84,13 @@ done
 ```
 Expected:
 ```
-v0.5.0     phase=draft-and-development  display=Draft and Development
-v0.6.0     phase=development-complete   display=Development Complete
-v0.7.3     phase=development-complete   display=Development Complete
-v0.8.0     phase=stabilized             display=Stabilized
-v0.9.0     phase=frozen                 display=Frozen
-v0.99.0    phase=ratification-ready     display=Ratification-Ready
-v0.99.1    phase=publication            display=Publication
-v1.0.0     phase=ratified               display=Ratified
+v0.5       phase=draft-and-development  display=Draft and Development
+v0.6       phase=development-complete   display=Development Complete
+v0.73      phase=development-complete   display=Development Complete
+v0.8       phase=stabilized             display=Stabilized
+v0.9       phase=frozen                 display=Frozen
+v0.99      phase=ratification-ready     display=Ratification-Ready
+v1.0       phase=ratified               display=Ratified
 ```
 
 ## Step 2 — Update `Makefile`
@@ -139,13 +144,14 @@ v1.0.0     phase=ratified               display=Ratified
 
 Smoke test (no Docker required):
 ```bash
-make -n SKIP_DOCKER=true VERSION=v0.8.0 DATE=2026-06-12 | grep -E "(asciidoctor|ARC|dest=)"
+make -n SKIP_DOCKER=true VERSION=v0.8 DATE=2026-06-12 | grep -E "(asciidoctor|ARC|dest=)"
 ```
-Should show `dest="<short>-v0.8.0-20260612.pdf"`.
+Should show `dest="<short>-v0.8-20260612.pdf"`.
 
 ## Step 3 — Update `.github/workflows/build-pdf.yml`
 
-- [ ] Replace `target_phase` enum values with the canonical IDs:
+- [ ] Replace `target_phase` enum values with the canonical IDs (no
+      `publication` — it is a phase, not a milestone version):
       ```yaml
       options:
         - auto-next
@@ -154,18 +160,17 @@ Should show `dest="<short>-v0.8.0-20260612.pdf"`.
         - stabilized
         - frozen
         - ratification-ready
-        - publication
         - ratified
       ```
-- [ ] Add `v0.99.1` to the `OFFICIAL_RELEASE` case statement so entry into
-      publication is treated as an official release:
+- [ ] Classify official releases via `release-info.sh is-milestone` (the single
+      source of truth for the gates `v0.6`, `v0.8`, `v0.9`, `v0.99`, `v1.0`)
+      rather than a hard-coded version list:
       ```yaml
-      case "${VERSION}" in
-        v0.6.0|v0.8.0|v0.9.0|v0.99.0|v0.99.1|v1.0.0)
-          echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV" ;;
-        *)
-          echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV" ;;
-      esac
+      if ./scripts/release-info.sh is-milestone "${VERSION}"; then
+        echo "OFFICIAL_RELEASE=true" >> "$GITHUB_ENV"
+      else
+        echo "OFFICIAL_RELEASE=false" >> "$GITHUB_ENV"
+      fi
       ```
 - [ ] Export `VERSION` and `DATE` in the build step so the Makefile picks
       them up:
@@ -241,15 +246,15 @@ are the same either way — only the path changes.
 ## Step 6 — Verify the PDF
 
 ```bash
-make VERSION=v0.8.0 DATE=2026-06-12
+make VERSION=v0.8 DATE=2026-06-12
 ls build/
 ```
-You should see exactly one PDF named `<short>-v0.8.0-20260612.pdf`. Open it
+You should see exactly one PDF named `<short>-v0.8-20260612.pdf`. Open it
 and confirm:
 
-- [ ] **Filename** contains short name, `v0.8.0`, and `20260612`.
+- [ ] **Filename** contains short name, `v0.8`, and `20260612`.
 - [ ] **Page 1 (title page)** ends with the line:
-      `Version v0.8.0, 2026-06-12: Stabilized`.
+      `Version v0.8, 2026-06-12: Stabilized`.
 - [ ] **Page 2** is a preface titled `Document State` whose only content is
       a `Note:` paragraph with the phase notice.
 - [ ] **Page 3** is the Table of Contents (and includes `Document State`
@@ -316,7 +321,7 @@ rest of the library — notably `sectnums`, which the central section-numbering
 extension owns.
 
 - [ ] `name`, `title` — yours.
-- [ ] `version: v0.0.0` — placeholder; stamped at release (Step 12). Do not
+- [ ] `version: v0.0` — placeholder; stamped at release (Step 12). Do not
       hand-edit thereafter.
 - [ ] `nav:` → `- modules/ROOT/nav.adoc`.
 - [ ] `asciidoc.attributes.asamBibliography: 'ROOT:resources/<spec>.bib'` if you
@@ -409,8 +414,9 @@ file.
 - [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job. On every real
       release (it skips PR previews and drafts) it stamps `antora.yml` and opens
       a **review PR** against `main` titled
-      `Stamp Antora site version vX.Y.Z to match released PDF`. It is monotonic —
-      it will not stamp `main` backwards when an older tag is rebuilt.
+      `Stamp Antora site version vX.Y to match released PDF`. It is monotonic —
+      it will not stamp `main` backwards when an older tag is rebuilt (it
+      compares by decimal value via `release-info.sh`, not `sort -V`).
 - [ ] **Merging that PR is part of cutting a release** (Step 14). Until it
       merges, the site version lags the released PDF. It deliberately opens a PR
       rather than pushing to `main` directly so it works whatever branch
@@ -418,8 +424,8 @@ file.
       and the site silently stale.
 - [ ] Verify:
       ```bash
-      make stamp-antora VERSION=v0.8.0 DATE=2026-06-12
-      git diff antora.yml     # version: v0.8.0, page-phase-display: 'Stabilized'
+      make stamp-antora VERSION=v0.8 DATE=2026-06-12
+      git diff antora.yml     # version: v0.8, page-phase-display: 'Stabilized'
       ```
       Then restamp to your repo's real state before committing.
 
@@ -444,21 +450,21 @@ When you're ready to advance to the next milestone:
 
 - [ ] Open the `Create Specification Document` workflow → `Run workflow`.
 - [ ] Pick the target milestone from `target_phase` (or leave on `auto-next`
-      for an intermediate patch tag).
+      for an intermediate revision tag).
 - [ ] Confirm the resulting release has a single PDF whose name matches the
       ARC convention.
 - [ ] **Review and merge the site version stamp PR** the release opened
-      (`Stamp Antora site version vX.Y.Z to match released PDF`). The site
+      (`Stamp Antora site version vX.Y to match released PDF`). The site
       version does not track the PDF until you do. The values are generated from
       `release-info.sh`, so this wants a merge, not an edit.
 - [ ] After it merges, confirm the site renders at `/<component>/<version>/` with
-      a cover reading `Version vX.Y.Z, YYYY-MM-DD: <Display>` — identical to the
+      a cover reading `Version vX.Y, YYYY-MM-DD: <Display>` — identical to the
       PDF title page.
 - [ ] **Releasing locally or offline?** The CI stamp doesn't run, so do it by
       hand or the site version silently lags the PDF:
       ```bash
-      make stamp-antora VERSION=vX.Y.Z
-      git add antora.yml && git commit -m "Stamp site version vX.Y.Z"
+      make stamp-antora VERSION=vX.Y
+      git add antora.yml && git commit -m "Stamp site version vX.Y"
       ```
 - [ ] If you changed `nav.adoc` this cycle, re-check the central
       `numbering_rules` entry (Step 11) — including its `branches:`/`tags:`.
@@ -475,8 +481,10 @@ When you're ready to advance to the next milestone:
 
 ### PDF
 
-- **Existing pre-`v0.6.0` tags:** the script labels them `draft-and-development`,
-  which is fine. No action needed.
+- **Existing pre-`v0.6` tags:** the script labels them `draft-and-development`,
+  which is fine. No action needed. **Old 3-digit tags** (`v0.8.0`) are not valid
+  in the 2-digit scheme and are ignored by `release-info.sh latest`; do not
+  delete them, just cut new 2-digit tags going forward.
 - **Repos that don't use this template's Makefile:** you still need to emit a
   PDF named per §3.2 of `ARC_SUBMISSION.md` and a title page per §3.3.
   Adopting the template Makefile is the easiest way; otherwise replicate the

@@ -1,20 +1,52 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_VERSION="v0.0.0"
+# Two-digit (fixed-point decimal) release metadata for the RISC-V spec lifecycle.
+#
+# Versions are `vMAJOR.FRAC` where the value is a decimal to hundredths:
+# v0.0 = 0.00, v0.6 = 0.60, v0.61 = 0.61, v0.99 = 0.99, v1.0 = 1.00. Ordering is
+# therefore DECIMAL, not per-component semver: v0.8 (0.80) > v0.61 (0.61). Do NOT
+# compare these with `sort -V` or `git ... --sort=version:refname` -- both order
+# the fractional part component-wise and get v0.8 < v0.61 wrong. Use the `compare`
+# / `max` / `latest` subcommands here, which compare by centi-value.
+#
+# Milestones (manual gates, one release each): v0.6 development-complete,
+# v0.8 stabilized, v0.9 frozen, v0.99 ratification-ready, v1.0 ratified. v0.0 is
+# the inception version. Between milestones, merges to main auto-advance by 0.01
+# (v0.61, v0.62, ... v0.79) up to -- but never onto -- the next manual milestone.
+
+DEFAULT_VERSION="v0.0"
 DEFAULT_PHASE="draft-and-development"
 SPEC_STATE_URL="http://riscv.org/spec-state"
-MAX_PATCH_BEFORE_MINOR_BUMP="${MAX_PATCH_BEFORE_MINOR_BUMP:-99}"
+
+# `next` exits with this code when the auto-increment band is exhausted (the next
+# 0.01 step would land on a manual milestone gate). Callers trap it to skip
+# tagging rather than hard-fail.
+NEXT_AT_MILESTONE_RC=10
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/release-info.sh [version|normalize|next|phase|phase-floor-version|display|milestone|notice|revremark|all] [value]
+Usage: scripts/release-info.sh <command> [value ...]
 
-Outputs release metadata derived from VERSION/RELEASE_VERSION, git tags, or defaults.
+Commands:
+  version                 Resolve version from VERSION/RELEASE_VERSION/git tags.
+  latest                  Highest valid v* git tag (decimal order), or default.
+  normalize <v>           Canonicalize a version string (v0.60 -> v0.6).
+  next [v]                Next auto version (+0.01); errors at a milestone gate.
+  compare <a> <b>         Print -1 / 0 / 1 for a<b / a==b / a>b (decimal order).
+  max <a> <b>             Print the greater of two versions.
+  is-milestone <v>        Exit 0 if v is a manual milestone gate.
+  phase [v]               Lifecycle phase (state) for a version.
+  phase-floor-version <p> Version at the gate of phase p.
+  display [v]             Title-case display label for a version's phase.
+  milestone [v]           "<gate> <phase>" milestone label.
+  notice [v]              Change-control notice text for a version's phase.
+  revremark [v]           Revision remark (display label) for a version.
+  all                     Emit all of the above as KEY=VALUE lines.
 USAGE
 }
 
-normalize_version() {
+normalize_prefix() {
   local v="$1"
   v="${v##*/}"
   if [[ "$v" != v* ]]; then
@@ -34,46 +66,129 @@ base_version() {
 version_valid() {
   local v
   v="$(base_version "$1")"
-  [[ "$v" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]
+  [[ "$v" =~ ^[0-9]+\.[0-9]+$ ]]
 }
 
-parse_version() {
-  local v major minor patch
+# Centi-value: MAJOR*100 + fractional-hundredths. The fractional part is padded
+# to two digits so v0.6 == v0.60 == 60. v1.0 -> 100, v0.0 -> 0.
+centi_of() {
+  local v major frac
   v="$(base_version "$1")"
-  IFS='.' read -r major minor patch <<<"$v"
-  patch="${patch:-0}"
-  echo "$major" "$minor" "$patch"
+  IFS='.' read -r major frac <<<"$v"
+  frac="${frac:-0}"
+  frac="${frac}00"
+  frac="${frac:0:2}"
+  echo $(( 10#$major * 100 + 10#$frac ))
+}
+
+is_milestone_centi() {
+  case "$1" in
+    60|80|90|99|100) return 0 ;;
+    *)               return 1 ;;
+  esac
+}
+
+# Canonical short (policy) form for a milestone centi-value.
+milestone_string_for_centi() {
+  case "$1" in
+    0)   echo "v0.0"  ;;
+    60)  echo "v0.6"  ;;
+    80)  echo "v0.8"  ;;
+    90)  echo "v0.9"  ;;
+    99)  echo "v0.99" ;;
+    100) echo "v1.0"  ;;
+    *)   return 1     ;;
+  esac
+}
+
+# Format an arbitrary centi-value as a version string. Milestone values use the
+# short policy form (60 -> v0.6); non-milestone auto values use the two-digit
+# fractional form (70 -> v0.70, 5 -> v0.05).
+format_centi() {
+  local c="$1" major frac
+  major=$(( c / 100 ))
+  frac=$(( c % 100 ))
+  if milestone_string_for_centi "$c" >/dev/null 2>&1; then
+    milestone_string_for_centi "$c"
+  elif (( frac == 0 )); then
+    printf 'v%d.0\n' "$major"
+  else
+    printf 'v%d.%02d\n' "$major" "$frac"
+  fi
+}
+
+canonical_version() {
+  format_centi "$(centi_of "$1")"
 }
 
 version_ge() {
-  local a1 b1 c1 a2 b2 c2
-  read -r a1 b1 c1 <<<"$(parse_version "$1")"
-  read -r a2 b2 c2 <<<"$(parse_version "$2")"
-  if (( a1 > a2 )); then
-    return 0
+  local a b
+  a="$(centi_of "$1")"
+  b="$(centi_of "$2")"
+  (( a >= b ))
+}
+
+compare_versions() {
+  local a b
+  a="$(centi_of "$1")"
+  b="$(centi_of "$2")"
+  if (( a < b )); then
+    echo -1
+  elif (( a > b )); then
+    echo 1
+  else
+    echo 0
   fi
-  if (( a1 == a2 && b1 > b2 )); then
-    return 0
+}
+
+max_version() {
+  if version_ge "$1" "$2"; then
+    canonical_version "$1"
+  else
+    canonical_version "$2"
   fi
-  if (( a1 == a2 && b1 == b2 && c1 >= c2 )); then
-    return 0
-  fi
-  return 1
 }
 
 next_version() {
-  local major minor patch
-  read -r major minor patch <<<"$(parse_version "$1")"
+  local c n
+  c="$(centi_of "$1")"
 
-  # Progress pre-1.0 development by rolling patch to the next minor at .99.
-  if (( major == 0 && minor < 99 && patch >= MAX_PATCH_BEFORE_MINOR_BUMP )); then
-    minor=$((minor + 1))
-    patch=0
-  else
-    patch=$((patch + 1))
+  if (( c >= 100 )); then
+    echo "release-info: $1 is at or past v1.0 (ratified); no automatic successor." >&2
+    exit 2
   fi
 
-  printf 'v%s.%s.%s\n' "$major" "$minor" "$patch"
+  n=$(( c + 1 ))
+  if is_milestone_centi "$n"; then
+    local ms
+    ms="$(milestone_string_for_centi "$n")"
+    echo "release-info: next step $ms is a manual milestone gate; cut it via workflow_dispatch (target_phase or release_version)." >&2
+    exit "$NEXT_AT_MILESTONE_RC"
+  fi
+
+  format_centi "$n"
+}
+
+# Highest valid v* tag by decimal (centi) order -- git's version sort cannot be
+# trusted for this scheme (it would rank v0.8 below v0.61).
+latest_tag() {
+  local best="" bestc=-1 t tc
+  if command -v git >/dev/null 2>&1; then
+    while IFS= read -r t; do
+      [[ -n "$t" ]] || continue
+      version_valid "$t" || continue
+      tc="$(centi_of "$t")"
+      if (( tc > bestc )); then
+        bestc="$tc"
+        best="$t"
+      fi
+    done < <(git tag --list 'v*' 2>/dev/null || true)
+  fi
+  if [[ -n "$best" ]]; then
+    canonical_version "$best"
+  else
+    echo "$DEFAULT_VERSION"
+  fi
 }
 
 get_version() {
@@ -94,55 +209,45 @@ get_version() {
     fi
   fi
 
-  if [[ -z "$v" ]] && command -v git >/dev/null 2>&1; then
-    v="$(git tag --list 'v*' --sort=-version:refname | head -n1 || true)"
-  fi
-
   if [[ -n "$v" ]] && version_valid "$v"; then
-    normalize_version "$v"
+    canonical_version "$v"
     return 0
   fi
 
-  echo "$DEFAULT_VERSION"
+  latest_tag
 }
 
 phase_display_for_phase() {
-  # Title-case display label rendered on the PDF title page and in the body
-  # NOTE admonition. The canonical (lowercase, hyphenated) ID stays usable for
-  # filenames, scripts, and machine-readable consumers; this is the human form.
   case "$1" in
     "draft-and-development") echo "Draft and Development" ;;
     "development-complete")  echo "Development Complete"  ;;
     "stabilized")            echo "Stabilized"            ;;
     "frozen")                echo "Frozen"                ;;
     "ratification-ready")    echo "Ratification-Ready"    ;;
-    "publication")           echo "Publication"           ;;
     "ratified")              echo "Ratified"              ;;
     *)                       echo "Draft"                 ;;
   esac
 }
 
 phase_for_version() {
-  local v="$1"
+  local v="$1" c
 
   if ! version_valid "$v"; then
     echo "$DEFAULT_PHASE"
     return 0
   fi
 
-  # Canonical RISC-V P&P milestone IDs. The version number encodes the
-  # milestone gate; see ARC_SUBMISSION.md.
-  if version_ge "$v" "v1.0.0"; then
+  c="$(centi_of "$v")"
+
+  if (( c >= 100 )); then
     echo "ratified"
-  elif version_ge "$v" "v0.99.1"; then
-    echo "publication"
-  elif version_ge "$v" "v0.99.0"; then
+  elif (( c >= 99 )); then
     echo "ratification-ready"
-  elif version_ge "$v" "v0.9.0"; then
+  elif (( c >= 90 )); then
     echo "frozen"
-  elif version_ge "$v" "v0.8.0"; then
+  elif (( c >= 80 )); then
     echo "stabilized"
-  elif version_ge "$v" "v0.6.0"; then
+  elif (( c >= 60 )); then
     echo "development-complete"
   else
     echo "draft-and-development"
@@ -151,53 +256,23 @@ phase_for_version() {
 
 milestone_for_phase() {
   case "$1" in
-    "development-complete")
-      echo "v0.6.x development-complete"
-      ;;
-    "stabilized")
-      echo "v0.8.x stabilized"
-      ;;
-    "frozen")
-      echo "v0.9.x frozen"
-      ;;
-    "ratification-ready")
-      echo "v0.99.0 ratification-ready"
-      ;;
-    "publication")
-      echo "v0.99.x publication"
-      ;;
-    "ratified")
-      echo "v1.0.x ratified"
-      ;;
-    *)
-      echo "draft-and-development"
-      ;;
+    "development-complete") echo "v0.6 development-complete" ;;
+    "stabilized")          echo "v0.8 stabilized"           ;;
+    "frozen")              echo "v0.9 frozen"               ;;
+    "ratification-ready")  echo "v0.99 ratification-ready"  ;;
+    "ratified")            echo "v1.0 ratified"             ;;
+    *)                     echo "draft-and-development"     ;;
   esac
 }
 
 phase_floor_version() {
   case "$1" in
-    "draft-and-development")
-      echo "v0.0.1"
-      ;;
-    "development-complete")
-      echo "v0.6.0"
-      ;;
-    "stabilized")
-      echo "v0.8.0"
-      ;;
-    "frozen")
-      echo "v0.9.0"
-      ;;
-    "ratification-ready")
-      echo "v0.99.0"
-      ;;
-    "publication")
-      echo "v0.99.1"
-      ;;
-    "ratified")
-      echo "v1.0.0"
-      ;;
+    "draft-and-development") echo "v0.0"  ;;
+    "development-complete")  echo "v0.6"  ;;
+    "stabilized")            echo "v0.8"  ;;
+    "frozen")                echo "v0.9"  ;;
+    "ratification-ready")    echo "v0.99" ;;
+    "ratified")              echo "v1.0"  ;;
     *)
       echo "Unknown phase '$1'" >&2
       return 2
@@ -207,7 +282,10 @@ phase_floor_version() {
 
 notice_for_phase() {
   case "$1" in
-    "draft-and-development"|"development-complete")
+    "draft-and-development")
+      echo "Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent."
+      ;;
+    "development-complete")
       echo "Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent."
       ;;
     "stabilized")
@@ -219,9 +297,6 @@ notice_for_phase() {
     "ratification-ready")
       echo "The specification is preparing for ratification. Only critical, ratification-blocking issues should be considered for change."
       ;;
-    "publication")
-      echo "The specification has cleared ratification-ready and is in the publication phase pending final ratification. Only publication-phase corrections are permitted."
-      ;;
     "ratified")
       echo "No changes are allowed. Any necessary or desired modifications must be addressed through a follow-on extension. Ratified extensions are never revised."
       ;;
@@ -232,12 +307,6 @@ notice_for_phase() {
 }
 
 revremark_for_phase() {
-  # revremark is rendered immediately under "Version <revnumber>, <revdate>" on
-  # the asciidoctor-pdf title page. Emit only the title-case milestone label so
-  # the title page reads:
-  #   Version v1.0.0, 2026-05-24
-  #          Ratified
-  # The longer policy text moves into the body NOTE admonition (notice_for_phase).
   phase_display_for_phase "$1"
 }
 
@@ -259,6 +328,9 @@ case "$command" in
   version)
     get_version
     ;;
+  latest)
+    latest_tag
+    ;;
   normalize)
     if [[ -z "$value" ]]; then
       echo "normalize requires a version value" >&2
@@ -268,13 +340,45 @@ case "$command" in
       echo "invalid version: $value" >&2
       exit 2
     fi
-    normalize_version "$value"
+    canonical_version "$value"
     ;;
   next)
     if [[ -z "$value" ]]; then
       value="$(get_version)"
     fi
+    if ! version_valid "$value"; then
+      echo "invalid version: $value" >&2
+      exit 2
+    fi
     next_version "$value"
+    ;;
+  compare)
+    if [[ -z "$value" || -z "${3:-}" ]]; then
+      echo "compare requires two version values" >&2
+      exit 2
+    fi
+    if ! version_valid "$value" || ! version_valid "$3"; then
+      echo "invalid version(s): $value $3" >&2
+      exit 2
+    fi
+    compare_versions "$value" "$3"
+    ;;
+  max)
+    if [[ -z "$value" || -z "${3:-}" ]]; then
+      echo "max requires two version values" >&2
+      exit 2
+    fi
+    if ! version_valid "$value" || ! version_valid "$3"; then
+      echo "invalid version(s): $value $3" >&2
+      exit 2
+    fi
+    max_version "$value" "$3"
+    ;;
+  is-milestone)
+    if [[ -z "$value" ]] || ! version_valid "$value"; then
+      exit 1
+    fi
+    is_milestone_centi "$(centi_of "$value")"
     ;;
   phase)
     if [[ -z "$value" ]]; then
@@ -309,12 +413,15 @@ case "$command" in
   all|"")
     version="$(get_version)"
     phase="$(phase_for_version "$version")"
-    display="$phase"
+    display="$(phase_display_for_phase "$phase")"
     milestone="$(milestone_for_phase "$phase")"
     notice="$(notice_for_phase "$phase")"
     revremark="$(revremark_for_phase "$phase")"
     printf 'VERSION=%s\nPHASE=%s\nPHASE_DISPLAY=%s\nMILESTONE=%s\nPHASE_NOTICE=%s\nREVMARK=%s\n' \
       "$version" "$phase" "$display" "$milestone" "$notice" "$revremark"
+    ;;
+  -h|--help|help)
+    usage
     ;;
   *)
     usage

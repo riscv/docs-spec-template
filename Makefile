@@ -82,7 +82,7 @@ all: build
 
 # Stamp antora.yml with the current VERSION/DATE so the Antora HTML site version
 # stays in EXACT lockstep with the ARC PDF (both derive from release-info.sh /
-# the git tag). Run at release time -- e.g. `make stamp-antora VERSION=v0.8.0`.
+# the git tag). Run at release time -- e.g. `make stamp-antora VERSION=v0.8`.
 # No Docker needed; edits antora.yml in place and must be committed.
 stamp-antora:
 	./scripts/stamp-antora-version.sh "$(VERSION)" "$(DATE)"
