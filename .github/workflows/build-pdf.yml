@@ -217,6 +217,10 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          # Do not persist the token as a git extraheader. create-pull-request
+          # injects its own auth header; a persisted one here makes git send two
+          # Authorization headers -> GitHub 400 "Duplicate header: Authorization".
+          persist-credentials: false
 
       - name: Stamp antora.yml to match the released PDF version
         id: stamp
