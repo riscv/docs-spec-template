@@ -2,11 +2,6 @@
 name: Version Bot
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - src/**
   workflow_dispatch:
     inputs:
       target_phase:
