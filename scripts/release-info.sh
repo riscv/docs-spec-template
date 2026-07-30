@@ -118,7 +118,12 @@ format_centi() {
 }
 
 canonical_version() {
-  format_centi "$(centi_of "$1")"
+  local v="$1" suffix=""
+  if [[ "$v" == *-* ]]; then
+    suffix="-${v#*-}"
+    v="${v%%-*}"
+  fi
+  echo "$(format_centi "$(centi_of "$v")")${suffix}"
 }
 
 version_ge() {
@@ -211,6 +216,22 @@ get_version() {
 
   if [[ -n "$v" ]] && version_valid "$v"; then
     canonical_version "$v"
+    return 0
+  fi
+
+  if command -v git >/dev/null 2>&1 && git rev-parse --git-dir >/dev/null 2>&1; then
+    local exact_tag
+    exact_tag="$(git tag --points-at HEAD --list 'v*' 2>/dev/null | head -n1 || true)"
+    if [[ -n "$exact_tag" ]] && version_valid "$exact_tag"; then
+      canonical_version "$exact_tag"
+      return 0
+    fi
+
+    local latest short_sha build_date
+    latest="$(latest_tag)"
+    short_sha="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+    build_date="$(date +%Y%m%d)"
+    echo "${latest}-${short_sha}-${build_date}"
     return 0
   fi
 
@@ -375,7 +396,7 @@ case "$command" in
     max_version "$value" "$3"
     ;;
   is-milestone)
-    if [[ -z "$value" ]] || ! version_valid "$value"; then
+    if [[ -z "$value" ]] || ! version_valid "$value" || [[ "$value" == *-* ]]; then
       exit 1
     fi
     is_milestone_centi "$(centi_of "$value")"

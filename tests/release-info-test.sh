@@ -109,6 +109,11 @@ ok "display v1.0"  Ratified    "$("$RI" display v1.0)"
 # --- publication milestone is gone ------------------------------------------
 rc "publication is not a valid phase floor"  2  "$RI" phase-floor-version publication
 
+# --- interim build non-tagged versions ---------------------------------------
+ok "normalize v0.60-a1b2c3d-20260730" "v0.6-a1b2c3d-20260730" "$("$RI" normalize v0.60-a1b2c3d-20260730)"
+rc "v0.6-a1b2c3d-20260730 not a milestone" 1 "$RI" is-milestone v0.6-a1b2c3d-20260730
+ok "phase v0.6-a1b2c3d-20260730" development-complete "$("$RI" phase v0.6-a1b2c3d-20260730)"
+
 # --- 3-digit input is rejected ----------------------------------------------
 rc "normalize rejects v0.6.0"  2  "$RI" normalize v0.6.0
 rc "normalize rejects v0.99.1" 2  "$RI" normalize v0.99.1
