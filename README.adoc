@@ -29,7 +29,15 @@ For guidelines on how to contribute, refer to the link:CONTRIBUTING.md[CONTRIBUT
 
 The governance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE] file.
 
-Community information, including meeting (if held) and mailing lists are detailed in this file.
+== Repository Setup Checklist
+
+When instantiating a new repository from this template, perform these one-time setup steps:
+
+1. **Enable Actions PR Creation**:
+   Go to *Settings* -> *Actions* -> *General* -> Scroll to *Workflow permissions* -> Check *Allow GitHub Actions to create and approve pull requests* -> Click *Save*.
+   *(Alternatively, configure a repository secret named `GHTOKEN` with a Personal Access Token).*
+2. **Initialize Submodules**:
+   Run `git submodule update --init --recursive` in your local workspace.
 
 == Building the Document
 
