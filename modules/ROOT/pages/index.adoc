@@ -7,14 +7,17 @@
 //
 // The cover treatment below (logo, title, version, phase banner) mirrors the
 // ratified RISC-V specs (e.g. riscv-server-platform) so this spec renders with a
-// proper cover on the site. `common::risc-v_logo.svg` is a shared asset supplied
-// by the central playbook, so it resolves only on the site build; a bare local
-// `npm run preview` has no `common` component and logs one expected unresolved
-// image. CI exception-lists that, which also means CI cannot validate this macro
-// -- check it on the dev site after publishing.
+// proper cover on the site. The logo comes from the `cover-logo` attribute
+// (antora.yml), which defaults to `common::risc-v_logo.svg` -- a shared asset
+// supplied by the central playbook, so it resolves only on the central site
+// build. A bare local `npm run preview` has no `common` component and logs one
+// expected unresolved image; CI exception-lists that, which also means CI cannot
+// validate this macro -- check it on the dev site after publishing. The GitHub
+// Pages build (scripts/build-pages-site.sh) overrides the attribute with a
+// vendored copy, so its cover renders standalone.
 
 [.space-below]
-image::common::risc-v_logo.svg[id="riscvlogo",role="xs",alt="RISCV"]
+image::{cover-logo}[id="riscvlogo",role="xs",alt="RISCV"]
 
 
 

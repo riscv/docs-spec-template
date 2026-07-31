@@ -38,6 +38,9 @@ When instantiating a new repository from this template, perform these one-time s
    *(Alternatively, configure a repository secret named `GHTOKEN` with a Personal Access Token).*
 2. **Initialize Submodules**:
    Run `git submodule update --init --recursive` in your local workspace.
+3. **Enable GitHub Pages** (only if you want the published HTML site):
+   Go to *Settings* -> *Pages* -> *Build and deployment* -> Set *Source* to *GitHub Actions*.
+   The publish workflow attempts this automatically, but the RISC-V organization restricts Pages site creation, so the workflow's built-in token cannot do it — a repository admin must do it once by hand. After that, every release publishes without further intervention.
 
 == Building the Document
 
@@ -123,6 +126,27 @@ To check bibliography output, build with `make` (the PDF/HTML use the `asciidoct
 [IMPORTANT]
 ====
 **Don't forget site numbering rules.** Chapter/section numbering on the published site is applied by the RISC-V central playbook, keyed to the **line numbers of the `xref` entries in `modules/ROOT/nav.adoc`** — not by anything in this repo. When you finalize your chapter structure (or add/remove/reorder pages in `nav.adoc`), you must add or update the matching entry in the central playbook's `numbering_rules`, or your spec will render with wrong or missing chapter numbers. See the *Section numbering* section of link:ANTORA.md[ANTORA.md] for the exact rule and format.
+====
+
+=== Publishing the Antora site to GitHub Pages
+
+Every `v*` release tag also publishes the specification as an HTML site on this repository's own GitHub Pages site, alongside the release PDF, via `.github/workflows/publish-site.yml`. The site lands at `https://<org>.github.io/<repo>/`.
+
+This needs the one-time *Enable GitHub Pages* step from the <<Repository Setup Checklist>> above. The workflow tries to enable Pages itself, but the RISC-V organization restricts Pages site creation, so its token is refused (`Resource not accessible by integration`) and a repository admin has to set the source to *GitHub Actions* once by hand. Everything after that is automatic.
+
+The site version is stamped from the same source as the PDF, so the two always match. A build with no release tag to name it — such as the first manual run in a new repository — publishes under `/spec-sample/dev/` rather than a long `vX.YY-<sha>-<date>` path, which keeps the URL stable and the site navigation readable; the exact commit is still shown on the cover page.
+
+To build exactly what CI publishes, without touching your `antora.yml`:
+
+[source,shell]
+----
+docker compose up -d kroki                # local diagram server, as above
+NO_STAMP=1 ./scripts/build-pages-site.sh  # builds the site into build/pages-site/
+----
+
+[NOTE]
+====
+This per-repo site is **not** the canonical RISC-V documentation site. `docs.riscv.org` is assembled centrally from many spec repositories; this workflow publishes a standalone copy of the same content, which is the primary HTML output for a spec that is not part of the central library. It also currently publishes a **single version** rather than a version dropdown — see *Publishing to GitHub Pages* in link:ANTORA.md[ANTORA.md] for why, and what would change that.
 ====
 
 == Automated Versioning and Milestones

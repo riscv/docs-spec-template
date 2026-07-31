@@ -87,6 +87,103 @@ first — Antora fetches from GitHub, not the worktree):
 
 No `nav:` key needed (declared in `antora.yml`). Renders at `/spec-sample/`.
 
+## Publishing to GitHub Pages
+
+Separate from the central site, this repo also publishes a **standalone copy** of
+the same content to its own GitHub Pages site, next to the release PDF. For a
+repo seeded from this template that is not part of the RISC-V central library,
+this is the primary HTML output; for specs that *are* consumed centrally,
+`docs.riscv.org` stays canonical and this is a convenience.
+
+- Workflow: `.github/workflows/publish-site.yml` — runs on `v*` tag pushes and on
+  manual dispatch, and deploys via `actions/deploy-pages`.
+- Build: `scripts/build-pages-site.sh` — the whole build, runnable locally.
+- Setup in a seeded repo: **one manual step**. `actions/configure-pages` is
+  configured with `enablement: true` and will turn Pages on by itself wherever
+  it is allowed to — but the RISC-V organization restricts Pages site creation,
+  so the workflow token is refused with `Resource not accessible by integration`
+  and a repository admin must set *Settings → Pages → Source* to "GitHub
+  Actions" once. Equivalent API call, with an admin token:
+  `gh api -X POST repos/<org>/<repo>/pages -f build_type=workflow`. Once the
+  site exists, `enablement: true` is a no-op and releases publish unattended.
+  The job skips itself on private repos, where Pages needs Team/Enterprise.
+
+### How the playbook is derived
+
+The Pages build does **not** get its own committed playbook. `antora-playbook.yml`
+carries a hand-maintained mirror of the central playbook's rendering attributes,
+and a second copy of that block would silently drift. Instead
+`scripts/gen-pages-playbook.js` loads it and overrides four things into a
+generated, gitignored `antora-pages-playbook.yml`:
+
+| Key | Why |
+| --- | --- |
+| `site.url` | Project Pages sites live at `https://<org>.github.io/<repo>/`, not at a domain root; Antora needs the base path for the sitemap and canonical links. |
+| `content.sources` | Which versions to publish (below). |
+| `output.dir` | `build/pages-site`, so a publish never clobbers the `build/site` preview output. |
+| `cover-logo` | Resolves the cover logo locally instead of from `common::`. |
+
+### The cover logo
+
+`index.adoc` renders the logo through the `cover-logo` attribute rather than a
+literal resource ID. It defaults in `antora.yml` to `common::risc-v_logo.svg`,
+the shared asset the central build uses. A single-repo build has no `common`
+component, so the Pages build stages the copy from the `docs-resources` submodule
+into `modules/ROOT/images/` (gitignored) and hard-sets the attribute to it. The
+central build is unaffected, and the local-preview behaviour is unchanged — a
+bare `npm run preview` still logs the one expected unresolved `common::` image
+that `validate-content-source.yml` exception-lists.
+
+### Versions, and why only one is published today
+
+### Untagged builds publish as `dev`
+
+A build with no release tag to name it — the first manual publish in a freshly
+seeded repo, or any `workflow_dispatch` before the first tag — gets
+`release-info.sh`'s dev version, `vX.YY-<sha>-<date>`. That string is published
+under a short fixed label (`dev`, override with `DEV_VERSION_LABEL`) instead of
+verbatim, for two reasons:
+
+1. **It breaks the navigation.** The RISC-V UI floats the version selector
+   beside the nav tree (`.version-box{float:right}` plus
+   `.nav-version-group{overflow:hidden}`, which establishes a block formatting
+   context), so the nav only gets the width left over next to the selector, and
+   the selector is as wide as its longest version string. At 22 characters the
+   nav collapses to about three characters per line. Release tags are short
+   (`vX.Y`) and render correctly, so this never affects a real release.
+2. **It churns URLs.** Every dispatch would otherwise mint a
+   `/spec-sample/<sha>/` path that the next publish orphans, since each deploy
+   replaces the whole site. `/spec-sample/dev/` stays linkable.
+
+The full dev version is not lost: it is still stamped into `page-revnumber` and
+shown on the cover page, so a published dev site names the exact commit it came
+from.
+
+### Version stamping
+
+The version stamp is applied to the **working tree** at build time from
+`scripts/release-info.sh` — the same source the PDF uses — so the published
+version matches the PDF even though the tagged commit's committed `antora.yml`
+has not been stamped yet. Nothing is committed back; `build-pdf.yml` still owns
+stamping `main`.
+
+The build also scans release tags and publishes any that carry a correctly
+stamped descriptor, which is what would give the site a multi-version dropdown. A
+tag qualifies only if it contains an `antora.yml` whose `version:` equals the tag
+itself. That is deliberately strict, for two reasons:
+
+1. Antora **aborts the entire build** on any ref that has no `antora.yml`, so
+   tags predating the Antora layout must be filtered out.
+2. A tag stamped with a different version would publish under a wrong or
+   duplicate version path.
+
+**Today no tag qualifies**, so the site publishes exactly one version. The reason
+is ordering: a release tag is pushed *first*, and `build-pdf.yml` stamps
+`antora.yml` on `main` *afterwards* — so a tag never contains its own version.
+If the release flow is ever changed to stamp and commit **before** cutting the
+tag, past releases begin appearing in the version dropdown automatically, with no
+change to this script.
+
 ## Section numbering
 
 Chapter/section numbering is applied by the **central playbook**, not this repo.
@@ -271,4 +368,9 @@ npm install                   # one-time: Antora + kroki/mathjax extensions
 docker compose up -d kroki    # local Kroki server on :9870 (for wavedrom/diagrams)
 npm run preview               # antora --fetch antora-playbook.yml -> build/site/
 docker compose down           # stop Kroki when done
+
+# GitHub Pages site, exactly as CI builds it (needs Kroki up, as above).
+# NOTE: this stamps antora.yml in your worktree -- pass NO_STAMP=1 to leave it be.
+NO_STAMP=1 ./scripts/build-pages-site.sh            # -> build/pages-site/
+./scripts/build-pages-site.sh https://org.github.io/repo   # with the real base URL
 ```
