@@ -38,6 +38,9 @@ When instantiating a new repository from this template, perform these one-time s
    *(Alternatively, configure a repository secret named `GHTOKEN` with a Personal Access Token).*
 2. **Initialize Submodules**:
    Run `git submodule update --init --recursive` in your local workspace.
+3. **Enable GitHub Pages** (only if you want the published HTML site):
+   Go to *Settings* -> *Pages* -> *Build and deployment* -> Set *Source* to *GitHub Actions*.
+   The publish workflow attempts this automatically, but the RISC-V organization restricts Pages site creation, so the workflow's built-in token cannot do it — a repository admin must do it once by hand. After that, every release publishes without further intervention.
 
 == Building the Document
 
@@ -127,7 +130,9 @@ To check bibliography output, build with `make` (the PDF/HTML use the `asciidoct
 
 === Publishing the Antora site to GitHub Pages
 
-Every `v*` release tag also publishes the specification as an HTML site on this repository's own GitHub Pages site, alongside the release PDF, via `.github/workflows/publish-site.yml`. Nothing needs to be enabled by hand — the workflow turns Pages on (source: *GitHub Actions*) the first time it runs, and the site lands at `https://<org>.github.io/<repo>/`.
+Every `v*` release tag also publishes the specification as an HTML site on this repository's own GitHub Pages site, alongside the release PDF, via `.github/workflows/publish-site.yml`. The site lands at `https://<org>.github.io/<repo>/`.
+
+This needs the one-time *Enable GitHub Pages* step from the <<Repository Setup Checklist>> above. The workflow tries to enable Pages itself, but the RISC-V organization restricts Pages site creation, so its token is refused (`Resource not accessible by integration`) and a repository admin has to set the source to *GitHub Actions* once by hand. Everything after that is automatic.
 
 The site version is stamped from the same source as the PDF, so the two always match. To build exactly what CI publishes, without touching your `antora.yml`:
 

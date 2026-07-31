@@ -98,8 +98,14 @@ this is the primary HTML output; for specs that *are* consumed centrally,
 - Workflow: `.github/workflows/publish-site.yml` — runs on `v*` tag pushes and on
   manual dispatch, and deploys via `actions/deploy-pages`.
 - Build: `scripts/build-pages-site.sh` — the whole build, runnable locally.
-- Setup in a seeded repo: **none**. `actions/configure-pages` with
-  `enablement: true` turns Pages on (source: "GitHub Actions") on the first run.
+- Setup in a seeded repo: **one manual step**. `actions/configure-pages` is
+  configured with `enablement: true` and will turn Pages on by itself wherever
+  it is allowed to — but the RISC-V organization restricts Pages site creation,
+  so the workflow token is refused with `Resource not accessible by integration`
+  and a repository admin must set *Settings → Pages → Source* to "GitHub
+  Actions" once. Equivalent API call, with an admin token:
+  `gh api -X POST repos/<org>/<repo>/pages -f build_type=workflow`. Once the
+  site exists, `enablement: true` is a no-op and releases publish unattended.
   The job skips itself on private repos, where Pages needs Team/Enterprise.
 
 ### How the playbook is derived
