@@ -125,6 +125,23 @@ To check bibliography output, build with `make` (the PDF/HTML use the `asciidoct
 **Don't forget site numbering rules.** Chapter/section numbering on the published site is applied by the RISC-V central playbook, keyed to the **line numbers of the `xref` entries in `modules/ROOT/nav.adoc`** — not by anything in this repo. When you finalize your chapter structure (or add/remove/reorder pages in `nav.adoc`), you must add or update the matching entry in the central playbook's `numbering_rules`, or your spec will render with wrong or missing chapter numbers. See the *Section numbering* section of link:ANTORA.md[ANTORA.md] for the exact rule and format.
 ====
 
+=== Publishing the Antora site to GitHub Pages
+
+Every `v*` release tag also publishes the specification as an HTML site on this repository's own GitHub Pages site, alongside the release PDF, via `.github/workflows/publish-site.yml`. Nothing needs to be enabled by hand — the workflow turns Pages on (source: *GitHub Actions*) the first time it runs, and the site lands at `https://<org>.github.io/<repo>/`.
+
+The site version is stamped from the same source as the PDF, so the two always match. To build exactly what CI publishes, without touching your `antora.yml`:
+
+[source,shell]
+----
+docker compose up -d kroki                # local diagram server, as above
+NO_STAMP=1 ./scripts/build-pages-site.sh  # builds the site into build/pages-site/
+----
+
+[NOTE]
+====
+This per-repo site is **not** the canonical RISC-V documentation site. `docs.riscv.org` is assembled centrally from many spec repositories; this workflow publishes a standalone copy of the same content, which is the primary HTML output for a spec that is not part of the central library. It also currently publishes a **single version** rather than a version dropdown — see *Publishing to GitHub Pages* in link:ANTORA.md[ANTORA.md] for why, and what would change that.
+====
+
 == Automated Versioning and Milestones
 
 The repository includes CI automation for specification revision metadata and state transitions.

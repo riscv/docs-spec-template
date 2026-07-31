@@ -36,6 +36,14 @@ asciidoc:
     # as raw text. This is a spec-SPECIFIC resource the central playbook cannot
     # supply, so it legitimately belongs here (not a rendering-attribute override).
     asamBibliography: ROOT:resources/riscv-spec.bib
+    # Cover logo for index.adoc, as an Antora resource ID. The default is the
+    # shared asset from the central `common` component, which is what the
+    # riscv.org production build uses. A single-repo build has no `common`
+    # component, so scripts/build-pages-site.sh (GitHub Pages) hard-sets this in
+    # its generated playbook to a copy vendored from the docs-resources
+    # submodule. Indirection lives here so neither build has to special-case the
+    # page itself.
+    cover-logo: common::risc-v_logo.svg
     # Release metadata for the cover page (index.adoc), kept in lockstep with the
     # PDF title page. Spec-SPECIFIC (the central playbook cannot know this spec's
     # version/phase), so it belongs here -- like asamBibliography above, not a
