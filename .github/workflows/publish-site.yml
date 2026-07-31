@@ -29,9 +29,10 @@ on:
   workflow_dispatch:
 
 # contents: read      -- checkout only; this workflow never writes to the repo.
-#                        In particular it does NOT commit the version stamp: the
+#                        In particular it does NOT persist the version stamp: the
 #                        stamp is applied to the working tree for the build and
-#                        thrown away (build-pdf.yml owns committing it to main).
+#                        thrown away. Getting it onto main stays build-pdf.yml's
+#                        job, which opens a review PR for it.
 # pages/id-token      -- required by actions/deploy-pages (OIDC deployment).
 permissions:
   contents: read

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Publish the Antora HTML site to the repository's own GitHub Pages site on each
+  `v*` release tag, alongside the release PDF (`publish-site.yml`,
+  `scripts/build-pages-site.sh`). Requires a one-time *Settings > Pages >
+  Source: GitHub Actions* by a repository admin. Does not replace the central
+  docs.riscv.org site.
 
 ## [4.0.0] - 2004-01-27
 - Workflow improvements
