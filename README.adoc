@@ -134,7 +134,9 @@ Every `v*` release tag also publishes the specification as an HTML site on this 
 
 This needs the one-time *Enable GitHub Pages* step from the <<Repository Setup Checklist>> above. The workflow tries to enable Pages itself, but the RISC-V organization restricts Pages site creation, so its token is refused (`Resource not accessible by integration`) and a repository admin has to set the source to *GitHub Actions* once by hand. Everything after that is automatic.
 
-The site version is stamped from the same source as the PDF, so the two always match. To build exactly what CI publishes, without touching your `antora.yml`:
+The site version is stamped from the same source as the PDF, so the two always match. A build with no release tag to name it — such as the first manual run in a new repository — publishes under `/spec-sample/dev/` rather than a long `vX.YY-<sha>-<date>` path, which keeps the URL stable and the site navigation readable; the exact commit is still shown on the cover page.
+
+To build exactly what CI publishes, without touching your `antora.yml`:
 
 [source,shell]
 ----

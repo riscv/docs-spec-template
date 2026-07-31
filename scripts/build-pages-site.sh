@@ -19,6 +19,8 @@
 #   DATE      Release date, YYYY-MM-DD (default: today)
 #   NO_STAMP  Set to 1 to skip version stamping (leave antora.yml as committed)
 #   TAG_GLOB  Which tags to consider publishing (default: v*)
+#   DEV_VERSION_LABEL
+#             Version label for untagged builds (default: dev) -- see step 1b
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +29,7 @@ cd "$repo_root"
 
 site_url="${1:-}"
 tag_glob="${TAG_GLOB:-v*}"
+DEV_VERSION_LABEL="${DEV_VERSION_LABEL:-dev}"
 generated_playbook="$repo_root/antora-pages-playbook.yml"
 output_dir="./build/pages-site"
 
@@ -53,6 +56,36 @@ else
 fi
 head_version="$(descriptor_version < "$repo_root/antora.yml")"
 echo "    component version: ${head_version:-<none>}"
+
+# ---------------------------------------------------------------------------
+# 1b. Keep the published version string SHORT
+#
+# The RISC-V UI floats the version selector alongside the navigation tree
+# (.version-box{float:right} + .nav-version-group{overflow:hidden}), so the nav
+# gets only the width left over beside the selector, and the selector is as wide
+# as its longest version string. A release tag is short (vX.Y) and renders fine.
+# An UNTAGGED build is not: release-info.sh returns a dev version of the form
+# vX.YY-<sha>-<date> (22 chars), which squeezes the nav to about three
+# characters per line -- and that is exactly what the first manual publish in a
+# freshly seeded repo produces.
+#
+# So untagged builds publish under a short, fixed label. This also stops every
+# dispatch from minting a brand-new /spec-sample/<sha>/ path that the next
+# publish orphans; /spec-sample/dev/ stays linkable. The full dev version is
+# still recorded on the cover page, via the page-revnumber stamped above.
+# ---------------------------------------------------------------------------
+case "$head_version" in
+  *-*)
+    echo "    untagged build -- publishing as '$DEV_VERSION_LABEL' (cover keeps $head_version)"
+    tmp_yml="$(mktemp)"
+    awk -v label="$DEV_VERSION_LABEL" '
+      !done && /^version:/ { print "version: " label; done = 1; next }
+      { print }
+    ' "$repo_root/antora.yml" > "$tmp_yml"
+    mv "$tmp_yml" "$repo_root/antora.yml"
+    head_version="$DEV_VERSION_LABEL"
+    ;;
+esac
 
 # ---------------------------------------------------------------------------
 # 2. Stage the cover logo

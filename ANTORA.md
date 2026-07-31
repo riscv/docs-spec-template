@@ -136,6 +136,31 @@ that `validate-content-source.yml` exception-lists.
 
 ### Versions, and why only one is published today
 
+### Untagged builds publish as `dev`
+
+A build with no release tag to name it — the first manual publish in a freshly
+seeded repo, or any `workflow_dispatch` before the first tag — gets
+`release-info.sh`'s dev version, `vX.YY-<sha>-<date>`. That string is published
+under a short fixed label (`dev`, override with `DEV_VERSION_LABEL`) instead of
+verbatim, for two reasons:
+
+1. **It breaks the navigation.** The RISC-V UI floats the version selector
+   beside the nav tree (`.version-box{float:right}` plus
+   `.nav-version-group{overflow:hidden}`, which establishes a block formatting
+   context), so the nav only gets the width left over next to the selector, and
+   the selector is as wide as its longest version string. At 22 characters the
+   nav collapses to about three characters per line. Release tags are short
+   (`vX.Y`) and render correctly, so this never affects a real release.
+2. **It churns URLs.** Every dispatch would otherwise mint a
+   `/spec-sample/<sha>/` path that the next publish orphans, since each deploy
+   replaces the whole site. `/spec-sample/dev/` stays linkable.
+
+The full dev version is not lost: it is still stamped into `page-revnumber` and
+shown on the cover page, so a published dev site names the exact commit it came
+from.
+
+### Version stamping
+
 The version stamp is applied to the **working tree** at build time from
 `scripts/release-info.sh` — the same source the PDF uses — so the published
 version matches the PDF even though the tagged commit's committed `antora.yml`
