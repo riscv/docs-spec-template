@@ -131,12 +131,12 @@ The repository includes CI automation for specification revision metadata and st
 
 === Trigger for automated version bumps
 
-The version bot runs on pushes to `main` only when files under `src/**` change (the main specification content).
+The version bot is triggered manually, by `workflow_dispatch` on `.github/workflows/version-bot.yml`. Merging to `main` does not cut a version; a maintainer decides when to tag one.
 
 === End-to-end flow
 
-1. A commit that changes `src/**` is pushed to `main`.
-2. `.github/workflows/version-bot.yml` finds the latest `v*` tag and creates the next revision tag (`vMAJOR.MINOR`) for that commit.
+1. A maintainer dispatches `.github/workflows/version-bot.yml` against `main`.
+2. The bot finds the latest `v*` tag and creates the next revision tag (`vMAJOR.MINOR`) for the current `main` commit.
 3. The new tag triggers `.github/workflows/build-pdf.yml`.
 4. The build uses the tag as `:revnumber:` and sets `:revdate:` to the build date.
 5. `scripts/release-info.sh` derives phase (`:phase:`), display state (`:phase_display:`), warning text (`:phase_notice:`), and `:revremark:` from the version milestone.

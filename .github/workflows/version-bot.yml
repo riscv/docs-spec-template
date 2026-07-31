@@ -46,6 +46,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # These credentials are what `git push origin "$next"` below signs the
+          # tag push with. A tag pushed by GITHUB_TOKEN cannot trigger the
+          # `push: tags: v*` run in build-pdf.yml, so the tag lands and no PDF
+          # or release is ever built. GHTOKEN makes it a real push event.
+          # Unlike milestone-pr, this job does not use create-pull-request, so
+          # persisting credentials here is safe.
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+
+      # Both of this workflow's outputs -- the version tag and the milestone PR
+      # -- are inert when written by GITHUB_TOKEN, because GitHub refuses to let
+      # it start downstream runs. Checked in tag-version rather than milestone-pr
+      # so the warning appears on every run, not only at a milestone boundary.
+      # Warn rather than fail: the tag and PR are still correct, they just do
+      # not trigger anything.
+      - name: Check for bot token
+        env:
+          GHTOKEN: ${{ secrets.GHTOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$GHTOKEN" ]]; then
+            echo "::warning::GHTOKEN is not set. The version tag will not trigger the release build in build-pdf.yml, and any milestone PR's checks will sit in 'action_required' until approved by hand. See README.adoc, 'Required repository secret'."
+          fi
 
       - name: Compute and tag next version
         id: version
@@ -164,22 +187,6 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
-
-      # A PR opened with GITHUB_TOKEN cannot trigger further workflow runs:
-      # GitHub parks them as `action_required` and a maintainer has to click
-      # "Approve and run" on every push to the branch. GHTOKEN gives the PR a
-      # real author so build-pdf/pre-commit/Vale/validate-content-source run on
-      # their own. Warn rather than fail -- without the secret the PR is still
-      # correct, its checks just need manual approval.
-      - name: Check for bot token
-        env:
-          GHTOKEN: ${{ secrets.GHTOKEN }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "$GHTOKEN" ]]; then
-            echo "::warning::GHTOKEN is not set. The milestone PR will be authored by github-actions[bot] and its checks will sit in 'action_required' until approved by hand. See README.adoc, 'Required repository secret'."
-          fi
 
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v6
