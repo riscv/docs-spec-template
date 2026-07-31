@@ -20,6 +20,16 @@ on:
   push:
     tags:
       - v*
+    # ===================================================================
+    # TEMPORARY -- REMOVE BEFORE MERGING.
+    # Exercises this workflow end to end (Pages enablement, build, deploy)
+    # from the feature branch. workflow_dispatch cannot do that yet: the
+    # "Run workflow" button only appears once the file is on the default
+    # branch, and pushing a v* tag to test would also fire build-pdf.yml
+    # and cut a real release of the template.
+    # ===================================================================
+    branches:
+      - publish-to-pages
   # Republish on demand -- e.g. after fixing content on a release, or to bring up
   # the site in a freshly seeded repo without waiting for the first tag.
   workflow_dispatch:
