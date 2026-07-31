@@ -168,6 +168,7 @@ jobs:
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
           commit-message: 'docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}'
           branch: gitbot/milestone-${{ needs.tag-version.outputs.next_version }}
           delete-branch: true
