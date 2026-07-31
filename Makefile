@@ -76,9 +76,28 @@ REQUIRES := --require=asciidoctor-bibtex \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical
 
-.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora
+DOCS_RESOURCES_CONFIG := docs-resources/global-config.adoc
+
+.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora check-docs-resources
 
 all: build
+
+check-docs-resources:
+	@if [ ! -f "$(DOCS_RESOURCES_CONFIG)" ]; then \
+		echo "Notice: docs-resources submodule is missing or uninitialized."; \
+		if command -v git >/dev/null 2>&1 && [ -d .git ]; then \
+			echo "Automatically initializing git submodules..."; \
+			git submodule update --init --recursive || { \
+				echo "ERROR: Failed to update git submodules automatically."; \
+				echo "Please run manually: git submodule update --init --recursive"; \
+				exit 1; \
+			}; \
+		else \
+			echo "ERROR: Missing docs-resources directory and git is unavailable."; \
+			echo "Please clone submodules or run: git submodule update --init --recursive"; \
+			exit 1; \
+		fi; \
+	fi
 
 # Stamp antora.yml with the current VERSION/DATE so the Antora HTML site version
 # stays in EXACT lockstep with the ARC PDF (both derive from release-info.sh /
@@ -90,7 +109,7 @@ stamp-antora:
 # After AsciiDoctor produces build/<basename>.pdf, rename each PDF to the
 # ARC-compliant form <basename>-v<version>-<YYYYMMDD>.pdf so every build
 # (local or CI) emits a uniquely identifiable artifact.
-build-docs: $(DOCS_PDF) $(DOCS_HTML) arc-rename
+build-docs: check-docs-resources $(DOCS_PDF) $(DOCS_HTML) arc-rename
 
 arc-rename: $(DOCS_PDF)
 	@for pdf in $(DOCS_PDF); do \
