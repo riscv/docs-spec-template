@@ -73,7 +73,7 @@ git clone --recurse-submodules https://github.com/riscv/docs-spec-template.git &
 [IMPORTANT]
 ====
 **Instantiated via GitHub's "Use this template"?**
-GitHub does not populate submodule contents when creating a repository from a template. 
+GitHub does not populate submodule contents when creating a repository from a template.
 If `docs-resources` is empty, run `git submodule update --init --recursive` in your local workspace. The Makefile will also attempt to auto-initialize submodules on `make build`.
 ====
 
@@ -171,6 +171,17 @@ All other versions are published as prereleases (`prerelease=true`).
 === Milestone PR behavior
 
 When a new tag crosses into a different phase than the previous tag, the bot opens a PR that updates `SPEC_STATE.md` for maintainer review. This PR is the checkpoint for governance/process updates required by the new phase.
+
+=== Required repository secret
+
+Set a `GHTOKEN` repository secret in every repository created from this template (Settings -> Secrets and variables -> Actions).
+
+Without it, the version bot and the release build fall back to the built-in `GITHUB_TOKEN`. GitHub refuses to let a `GITHUB_TOKEN`-authored pull request start further workflow runs, so every check on a bot-opened PR -- the PDF build, `pre-commit`, Vale, and the Antora content-source validation -- is created in the `action_required` state and waits for a maintainer to press "Approve and run". The PR itself is still correct; only its checks stall.
+
+`GHTOKEN` may be either:
+
+* A fine-grained personal access token scoped to the repository with `Contents: read and write`, `Pull requests: read and write`, and `Workflows: read and write`. Simplest to set up; tied to one person's account and expires.
+* A GitHub App installation token minted per run with `actions/create-github-app-token`. Preferred for repositories with more than one maintainer, since it is not tied to an individual.
 
 === Manual build overrides
 

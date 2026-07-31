@@ -165,6 +165,22 @@ jobs:
           set -euo pipefail
           ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
 
+      # A PR opened with GITHUB_TOKEN cannot trigger further workflow runs:
+      # GitHub parks them as `action_required` and a maintainer has to click
+      # "Approve and run" on every push to the branch. GHTOKEN gives the PR a
+      # real author so build-pdf/pre-commit/Vale/validate-content-source run on
+      # their own. Warn rather than fail -- without the secret the PR is still
+      # correct, its checks just need manual approval.
+      - name: Check for bot token
+        env:
+          GHTOKEN: ${{ secrets.GHTOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$GHTOKEN" ]]; then
+            echo "::warning::GHTOKEN is not set. The milestone PR will be authored by github-actions[bot] and its checks will sit in 'action_required' until approved by hand. See README.adoc, 'Required repository secret'."
+          fi
+
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v6
         with:
