@@ -164,8 +164,8 @@ from.
 The version stamp is applied to the **working tree** at build time from
 `scripts/release-info.sh` — the same source the PDF uses — so the published
 version matches the PDF even though the tagged commit's committed `antora.yml`
-has not been stamped yet. Nothing is committed back; `build-pdf.yml` still owns
-stamping `main`.
+has not been stamped yet. Nothing is committed back; getting the stamp onto
+`main` stays `build-pdf.yml`'s job, which opens a review PR for it.
 
 The build also scans release tags and publishes any that carry a correctly
 stamped descriptor, which is what would give the site a multi-version dropdown. A

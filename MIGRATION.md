@@ -15,6 +15,9 @@ source tree, and a spec author needs both:
 2. **The Antora HTML site.** Chapter content is consumed as a *content source*
    by the RISC-V central playbook and published on antora.riscv.org. The ARC
    Author Guide requires the site version to match the PDF version **exactly**.
+   Optionally, the same content can also be published to your own repo's GitHub
+   Pages site (Step 13a) — a standalone copy, not a replacement for the central
+   site.
 
 Parts A and C below are the PDF; Part B is the site. **Do not stop after Part
 A** — a repo that does gets a compliant PDF and no site.
@@ -41,6 +44,9 @@ is the sequence of actions; ANTORA.md is the rationale.
 > `antora.yml`, `antora-playbook.yml`, `modules/ROOT/nav.adoc`, `package.json`,
 > `docker-compose.yml`, `scripts/stamp-antora-version.sh`, and
 > `.github/workflows/validate-content-source.yml` in addition to the PDF files.
+> Adopting the optional GitHub Pages publish (Step 13a) adds
+> `.github/workflows/publish-site.yml`, `scripts/build-pages-site.sh`, and
+> `scripts/gen-pages-playbook.js`.
 
 ---
 
@@ -439,6 +445,62 @@ file.
       xrefs into other specs). These resolve only in the central multi-source
       build and are *expected* to be unresolved here.
 
+## Step 13a — Publish to your own GitHub Pages site (optional)
+
+Steps 1–13 give you the ARC PDF and a component the central playbook can
+consume. This step additionally publishes a **standalone copy** of the same
+content to your repo's own GitHub Pages site on every release. It does not
+replace antora.riscv.org, which stays canonical for RISC-V specs — but it is the
+primary HTML output for a spec that is not part of the central library, and a
+useful full-fidelity preview for one that is. Skip this step freely; nothing
+else depends on it.
+
+- [ ] Copy `.github/workflows/publish-site.yml`, `scripts/build-pages-site.sh`,
+      and `scripts/gen-pages-playbook.js`. The workflow runs on `v*` tags and on
+      `workflow_dispatch`; the build lives in the script so it is reproducible
+      locally.
+- [ ] Render the cover logo through an attribute, so the page works in both
+      builds. In `antora.yml`:
+      ```yaml
+          cover-logo: common::risc-v_logo.svg
+      ```
+      and in `modules/ROOT/pages/index.adoc` use `image::{cover-logo}[...]`
+      instead of a literal `common::risc-v_logo.svg`. The central build keeps
+      using the shared asset; the Pages build overrides the attribute with a
+      copy vendored from the `docs-resources` submodule, because a single-repo
+      build has no `common` component.
+- [ ] Add the generated artifacts to `.gitignore`:
+      ```gitignore
+      /antora-pages-playbook.yml
+      /modules/ROOT/images/risc-v_logo.svg
+      ```
+- [ ] **Have a repository admin enable Pages once**: *Settings → Pages → Build
+      and deployment → Source: GitHub Actions*. The workflow asks for this
+      automatically (`enablement: true`), but the RISC-V organization restricts
+      Pages site creation, so the workflow's token is refused with
+      `Resource not accessible by integration`. Equivalent API call:
+      ```bash
+      gh api -X POST repos/<org>/<repo>/pages -f build_type=workflow
+      ```
+      Pages also needs a public repo unless your org is on Team/Enterprise; the
+      job skips itself on private repos rather than failing your release.
+- [ ] Verify locally before pushing (needs Kroki, as in Step 10):
+      ```bash
+      NO_STAMP=1 ./scripts/build-pages-site.sh   # -> build/pages-site/
+      ```
+- [ ] Verify in CI: run the workflow manually and confirm the site appears at
+      `https://<org>.github.io/<repo>/`. A repo with no release tags yet
+      publishes under `/<component>/dev/` rather than a
+      `v<latest>-<hash>-<date>` path — that is deliberate, and the exact commit
+      is still shown on the cover page.
+
+> **One version, not a dropdown.** The build publishes the checked-out ref, plus
+> any release tag whose `antora.yml` names that same tag. Under the standard
+> release flow the tag is cut *before* the stamp PR from Step 12 merges, so no
+> tag carries its own version and exactly one version is published. Tags that
+> predate your Antora migration are skipped with a reason rather than aborting
+> the build — Antora fails hard on any ref lacking `antora.yml`.
+
 ---
 
 # Part C — Release and submit
@@ -465,6 +527,10 @@ When you're ready to advance to the next milestone:
       make stamp-antora VERSION=vX.Y
       git add antora.yml && git commit -m "Stamp site version vX.Y"
       ```
+- [ ] If you adopted Step 13a, confirm your own Pages site published at
+      `https://<org>.github.io/<repo>/<component>/vX.Y/`. It is stamped
+      independently of the Step 12 PR, so it is correct as soon as the tag
+      build finishes — it does not wait for that PR to merge.
 - [ ] If you changed `nav.adoc` this cycle, re-check the central
       `numbering_rules` entry (Step 11) — including its `branches:`/`tags:`.
 - [ ] Use the **GitHub Release URL** (not a branch or commit URL) in the ARC
