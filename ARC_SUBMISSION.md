@@ -182,16 +182,17 @@ ls build/
 # → <short>-v0.8-20260612.pdf
 ```
 
-The `arc-rename` target in the Makefile produces the ARC-compliant filename
-on every build — there is no separate "ARC build" target; every PDF this
-repo emits is ARC-compliant by construction.
+The Makefile passes the ARC-compliant filename to AsciiDoctor's `-o` on every
+build — there is no separate "ARC build" target, and no post-build rename that
+could fail and leave a non-compliant PDF behind; every PDF this repo emits is
+ARC-compliant by construction.
 
 ### 4.3 Multi-document repos
 
 If your repo builds more than one specification, list each in `DOCS` and
-the `arc-rename` target renames each PDF with its own basename. If two
-docs in one repo are submitted to ARC independently, ensure their
-basenames are the ARC short names.
+the `%.pdf` rule names each PDF from its own basename. If two docs in one
+repo are submitted to ARC independently, ensure their basenames are the
+ARC short names.
 
 ## 5. Pre-submission checklist
 

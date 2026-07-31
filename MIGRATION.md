@@ -125,28 +125,27 @@ v1.0       phase=ratified               display=Ratified
       -a milestone_id='${MILESTONE_ID}' \
       -a spec_short='${SPEC_SHORT}' \
       ```
-- [ ] Add the `arc-rename` target and make `build-docs` depend on it:
+- [ ] Have AsciiDoctor emit the ARC filename directly (`-o` resolves relative to
+      `-D`). Do NOT rename the PDF after the fact: inside the container `build/`
+      is created by root, so a host-side `mv` into it fails with EPERM on rootful
+      Docker — and a rename that fails after a green build ships a
+      non-ARC-compliant asset.
       ```make
-      .PHONY: ... arc-rename
+      ARC_PDF = $(1)-v$(VERSION_NUM)-$(DATE_STAMP).pdf
 
-      build-docs: $(DOCS_PDF) $(DOCS_HTML) arc-rename
+      build-docs: $(DOCS_PDF) $(DOCS_HTML)
 
-      arc-rename: $(DOCS_PDF)
-      	@for pdf in $(DOCS_PDF); do \
-      		base=$$(basename $$pdf .pdf); \
-      		dest="$$base-v$(VERSION_NUM)-$(DATE_STAMP).pdf"; \
-      		if [ -f build/$$pdf ]; then \
-      			mv build/$$pdf build/$$dest; \
-      			echo "ARC submission PDF: build/$$dest"; \
-      		fi; \
-      	done
+      %.pdf: %.adoc
+      	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_PDF) $(OPTIONS) $(REQUIRES) -o $(call ARC_PDF,$*) $< $(DOCKER_QUOTE)
+      	@test -f build/$(call ARC_PDF,$*) || { echo "ERROR: build/$(call ARC_PDF,$*) was not produced" >&2; exit 1; }
+      	@echo "ARC submission PDF: build/$(call ARC_PDF,$*)"
       ```
 
 Smoke test (no Docker required):
 ```bash
-make -n SKIP_DOCKER=true VERSION=v0.8 DATE=2026-06-12 | grep -E "(asciidoctor|ARC|dest=)"
+make -n SKIP_DOCKER=true VERSION=v0.8 DATE=2026-06-12 | grep -E "(asciidoctor|ARC)"
 ```
-Should show `dest="<short>-v0.8-20260612.pdf"`.
+Should show `-o spec-sample-v0.8-20260612.pdf` on the `asciidoctor-pdf` line.
 
 ## Step 3 — Update `.github/workflows/build-pdf.yml`
 
@@ -489,13 +488,14 @@ When you're ready to advance to the next milestone:
   PDF named per §3.2 of `ARC_SUBMISSION.md` and a title page per §3.3.
   Adopting the template Makefile is the easiest way; otherwise replicate the
   naming logic in whatever build system you use.
-- **Multi-document repos:** the `arc-rename` target loops over every PDF in
-  `$(DOCS_PDF)`, so each gets renamed with its own basename + version + date.
+- **Multi-document repos:** the `%.pdf` rule fires once per PDF in
+  `$(DOCS_PDF)`, so each is named from its own basename + version + date.
   If two docs in one repo need to be ARC-submitted independently, the
   `SPEC_SHORT` heuristic uses the .adoc basename — verify that's the short
   name ARC expects.
 - **GitHub Actions caching:** if you cache `build/` between runs, clear the
-  cache once so the old un-renamed PDF doesn't ghost the renamed output.
+  cache once so a stale PDF from an earlier version doesn't ghost the current
+  output — the release step globs `build/*.pdf` and would attach both.
 - **Don't rewrite tags.** Push a new monotonically-greater tag if you need to
   reissue.
 - **`:toc: macro` requires explicit placement.** If you switch from
