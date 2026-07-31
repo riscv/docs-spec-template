@@ -65,7 +65,7 @@ git clone --recurse-submodules https://github.com/riscv/docs-spec-template.git &
 [IMPORTANT]
 ====
 **Instantiated via GitHub's "Use this template"?**
-GitHub does not populate submodule contents when creating a repository from a template. 
+GitHub does not populate submodule contents when creating a repository from a template.
 If `docs-resources` is empty, run `git submodule update --init --recursive` in your local workspace. The Makefile will also attempt to auto-initialize submodules on `make build`.
 ====
 
