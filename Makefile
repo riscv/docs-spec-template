@@ -78,7 +78,7 @@ REQUIRES := --require=asciidoctor-bibtex \
 
 DOCS_RESOURCES_CONFIG := docs-resources/global-config.adoc
 
-.PHONY: all build clean build-container build-no-container build-docs arc-rename stamp-antora check-docs-resources
+.PHONY: all build clean build-container build-no-container build-docs stamp-antora check-docs-resources
 
 all: build
 
@@ -106,25 +106,24 @@ check-docs-resources:
 stamp-antora:
 	./scripts/stamp-antora-version.sh "$(VERSION)" "$(DATE)"
 
-# After AsciiDoctor produces build/<basename>.pdf, rename each PDF to the
-# ARC-compliant form <basename>-v<version>-<YYYYMMDD>.pdf so every build
-# (local or CI) emits a uniquely identifiable artifact.
-build-docs: check-docs-resources $(DOCS_PDF) $(DOCS_HTML) arc-rename
+build-docs: check-docs-resources $(DOCS_PDF) $(DOCS_HTML)
 
-arc-rename: $(DOCS_PDF)
-	@for pdf in $(DOCS_PDF); do \
-		base=$$(basename $$pdf .pdf); \
-		dest="$$base-v$(VERSION_NUM)-$(DATE_STAMP).pdf"; \
-		if [ -f build/$$pdf ]; then \
-			mv build/$$pdf build/$$dest; \
-			echo "ARC submission PDF: build/$$dest"; \
-		fi; \
-	done
+# ARC-compliant PDF name: <basename>-v<version>-<YYYYMMDD>.pdf, so every build
+# (local or CI) emits a uniquely identifiable artifact.
+ARC_PDF = $(1)-v$(VERSION_NUM)-$(DATE_STAMP).pdf
 
 vpath %.adoc $(SRC_DIR)
 
+# AsciiDoctor writes the ARC name itself (-o is resolved relative to -D), rather
+# than the build renaming build/<basename>.pdf afterwards. Inside the container
+# build/ is created by root, so a host-side `mv` into it fails with EPERM on
+# rootful Docker -- which is exactly how v0.61 shipped a non-compliant
+# build/spec-sample.pdf while the log claimed the ARC name. Naming it at the
+# source removes the failure mode instead of reporting it.
 %.pdf: %.adoc
-	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_PDF) $(OPTIONS) $(REQUIRES) $< $(DOCKER_QUOTE)
+	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_PDF) $(OPTIONS) $(REQUIRES) -o $(call ARC_PDF,$*) $< $(DOCKER_QUOTE)
+	@test -f build/$(call ARC_PDF,$*) || { echo "ERROR: build/$(call ARC_PDF,$*) was not produced" >&2; exit 1; }
+	@echo "ARC submission PDF: build/$(call ARC_PDF,$*)"
 
 %.html: %.adoc
 	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_HTML) $(OPTIONS) $(REQUIRES) $< $(DOCKER_QUOTE)
