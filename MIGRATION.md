@@ -457,9 +457,31 @@ file.
       AsciiDoc, unresolved intra-component xrefs/includes, and extension errors
       fail in your repo instead of stalling the shared central library build. It
       does **not** build or deploy the real site.
-- [ ] Exception-list cross-component references (`common::risc-v_logo.svg`,
-      xrefs into other specs). These resolve only in the central multi-source
-      build and are *expected* to be unresolved here.
+- [ ] Exception-list cross-component references (xrefs into other specs). These
+      resolve only in the central multi-source build and are *expected* to be
+      unresolved here.
+- [ ] Keep the gate's render as a PR preview artifact — the site is built on
+      every PR either way, so retaining it costs no build time and lets
+      reviewers see a content change rendered:
+      ```yaml
+      - name: Upload rendered site
+        id: upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: Rendered site (Antora)
+          path: build/site
+          retention-days: 14
+      ```
+      Check out with `submodules: recursive` and stage the cover logo before the
+      build (copy `docs-resources/images/risc-v_logo.svg` into
+      `modules/ROOT/images/`, then pass
+      `--attribute cover-logo=risc-v_logo.svg`). Without it `index.adoc` — the
+      start page, and the first thing a reviewer opens — renders a broken image.
+- [ ] Write the artifact link into `$GITHUB_STEP_SUMMARY` here and in
+      `build-pdf.yml`, using `upload-artifact`'s `artifact-url` output, so the
+      output is one click from the Checks tab. Do **not** post it as a PR
+      comment from these workflows: the `pull_request` token is read-only on
+      fork PRs, so that needs a separate `workflow_run`-triggered workflow.
 
 ## Step 13a — Publish to your own GitHub Pages site (optional)
 

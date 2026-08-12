@@ -131,8 +131,15 @@ the shared asset the central build uses. A single-repo build has no `common`
 component, so the Pages build stages the copy from the `docs-resources` submodule
 into `modules/ROOT/images/` (gitignored) and hard-sets the attribute to it. The
 central build is unaffected, and the local-preview behaviour is unchanged — a
-bare `npm run preview` still logs the one expected unresolved `common::` image
-that `validate-content-source.yml` exception-lists.
+bare `npm run preview` still logs the one expected unresolved `common::` image.
+
+`validate-content-source.yml` stages the logo the same way, for a different
+reason: it publishes its render as a PR preview artifact, and `index.adoc` is the
+start page, so an unresolved cover would be the first thing a reviewer sees. A
+side effect is that the gate now actually *validates* the image macro, which it
+could not while it was merely exception-listing the error. The exception stays,
+but only covers the degraded path where the submodule is unavailable — there it
+keeps a missing submodule a warning rather than a red gate.
 
 ### Versions, and why only one is published today
 
@@ -336,9 +343,21 @@ unnumbered back matter).
   `antora-playbook.yml` (npm ci → Kroki service on :9870 → `npx antora`), as a
   gate so broken AsciiDoc / unresolved intra-component xrefs/includes / extension
   errors fail here instead of stalling the shared central build. It does NOT
-  deploy. Cross-component refs (`common::risc-v_logo.svg`, xrefs into other specs)
-  resolve only centrally, so they are exception-listed. Verified: clean tree
-  passes; an injected broken xref fails the gate.
+  deploy. Cross-component refs (xrefs into other specs) resolve only centrally,
+  so they are exception-listed. Verified: clean tree passes; an injected broken
+  xref fails the gate.
+  * **PR preview artifact.** The gate's render is uploaded as *Rendered site
+    (Antora)* (~4 MB, 14-day retention) instead of being discarded, so a reviewer
+    can see a content change rendered rather than reading the AsciiDoc diff — the
+    build was already happening on every PR, so this costs no build time. The
+    cover logo is staged first (see "The cover logo") so the start page is not
+    broken. Both this job and `build-pdf.yml` write a direct artifact link into
+    `$GITHUB_STEP_SUMMARY` via `upload-artifact`'s `artifact-url` output; that
+    needs no permissions and works on fork PRs, where the `pull_request` token is
+    read-only. It is a HEAD-only preview, not a deployment: a real per-PR preview
+    host was rejected because the RISC-V org refuses Pages site creation to the
+    workflow token (see `publish-site.yml`) and fork PRs cannot hold deploy
+    secrets. Artifact download still requires a signed-in GitHub account.
   * **Version-stamp automation (Phase 4 lockstep, now wired).** `build-pdf.yml`
     resolves `VERSION`/`DATE` once (shared by the PDF build and the stamp, so no
     date drift) and a `stamp-site-version` job stamps the matching `antora.yml`

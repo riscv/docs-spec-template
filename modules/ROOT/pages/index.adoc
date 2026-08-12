@@ -11,10 +11,12 @@
 // (antora.yml), which defaults to `common::risc-v_logo.svg` -- a shared asset
 // supplied by the central playbook, so it resolves only on the central site
 // build. A bare local `npm run preview` has no `common` component and logs one
-// expected unresolved image; CI exception-lists that, which also means CI cannot
-// validate this macro -- check it on the dev site after publishing. The GitHub
-// Pages build (scripts/build-pages-site.sh) overrides the attribute with a
-// vendored copy, so its cover renders standalone.
+// expected unresolved image. Both single-repo builds override the attribute with
+// a copy vendored from the docs-resources submodule, so their covers render
+// standalone: the GitHub Pages build (scripts/build-pages-site.sh) and the CI
+// gate (validate-content-source.yml), which publishes its render as a PR preview
+// artifact. The gate therefore does validate this macro -- its exception for
+// `common::` now only absorbs the case where the submodule is unavailable.
 
 [.space-below]
 image::{cover-logo}[id="riscvlogo",role="xs",alt="RISCV"]
