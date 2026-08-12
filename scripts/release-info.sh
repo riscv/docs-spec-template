@@ -227,11 +227,16 @@ get_version() {
       return 0
     fi
 
-    local latest short_sha build_date
+    # Untagged: <latest tag>-<sha>, with NO date folded in. The build date
+    # already reaches every artifact independently -- the Makefile passes it as
+    # revdate and appends DATE_STAMP to the ARC filename -- so embedding it here
+    # too stamped local PDFs with the date twice (spec-v0.6-abc-20260812-20260812
+    # .pdf), which is not ARC-compliant. The sha alone keeps the build uniquely
+    # identifiable and marks it as not built from a tag.
+    local latest short_sha
     latest="$(latest_tag)"
     short_sha="$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")"
-    build_date="$(date +%Y%m%d)"
-    echo "${latest}-${short_sha}-${build_date}"
+    echo "${latest}-${short_sha}"
     return 0
   fi
 

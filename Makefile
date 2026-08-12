@@ -112,6 +112,12 @@ build-docs: check-docs-resources $(DOCS_PDF) $(DOCS_HTML)
 # (local or CI) emits a uniquely identifiable artifact.
 ARC_PDF = $(1)-v$(VERSION_NUM)-$(DATE_STAMP).pdf
 
+# ...but only a build off a clean vX.YY -- a tag, or an explicit VERSION= as CI
+# passes -- is actually SUBMITTABLE. An untagged build resolves VERSION to
+# <latest>-<sha> (release-info.sh), so its filename carries the sha and is a dev
+# artifact. Report that honestly rather than asserting compliance it lacks.
+ARC_EXACT := $(if $(findstring -,$(VERSION)),,yes)
+
 vpath %.adoc $(SRC_DIR)
 
 # AsciiDoctor writes the ARC name itself (-o is resolved relative to -D), rather
@@ -123,7 +129,13 @@ vpath %.adoc $(SRC_DIR)
 %.pdf: %.adoc
 	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_PDF) $(OPTIONS) $(REQUIRES) -o $(call ARC_PDF,$*) $< $(DOCKER_QUOTE)
 	@test -f build/$(call ARC_PDF,$*) || { echo "ERROR: build/$(call ARC_PDF,$*) was not produced" >&2; exit 1; }
-	@echo "ARC submission PDF: build/$(call ARC_PDF,$*)"
+	@if [ -n "$(ARC_EXACT)" ]; then \
+		echo "ARC submission PDF: build/$(call ARC_PDF,$*)"; \
+	else \
+		echo "Development PDF: build/$(call ARC_PDF,$*)"; \
+		echo "  Built from an untagged commit ($(VERSION)) -- NOT an ARC submission artifact."; \
+		echo "  Build from a v* tag, or run 'make VERSION=vX.YY', to produce one."; \
+	fi
 
 %.html: %.adoc
 	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_HTML) $(OPTIONS) $(REQUIRES) $< $(DOCKER_QUOTE)
