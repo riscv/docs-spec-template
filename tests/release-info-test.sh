@@ -110,9 +110,35 @@ ok "display v1.0"  Ratified    "$("$RI" display v1.0)"
 rc "publication is not a valid phase floor"  2  "$RI" phase-floor-version publication
 
 # --- interim build non-tagged versions ---------------------------------------
+ok "normalize v0.60-a1b2c3d" "v0.6-a1b2c3d" "$("$RI" normalize v0.60-a1b2c3d)"
+rc "v0.6-a1b2c3d not a milestone" 1 "$RI" is-milestone v0.6-a1b2c3d
+ok "phase v0.6-a1b2c3d" development-complete "$("$RI" phase v0.6-a1b2c3d)"
+# Suffix handling stays generic, incl. the legacy date-bearing dev form.
 ok "normalize v0.60-a1b2c3d-20260730" "v0.6-a1b2c3d-20260730" "$("$RI" normalize v0.60-a1b2c3d-20260730)"
-rc "v0.6-a1b2c3d-20260730 not a milestone" 1 "$RI" is-milestone v0.6-a1b2c3d-20260730
 ok "phase v0.6-a1b2c3d-20260730" development-complete "$("$RI" phase v0.6-a1b2c3d-20260730)"
+
+# --- dev version carries NO date (#131) --------------------------------------
+# The Makefile appends DATE_STAMP to build the ARC filename
+# <short>-v<version>-<YYYYMMDD>.pdf. A dev version that embedded its own build
+# date therefore stamped the date TWICE on every local build. Assert the emitted
+# shape is <latest>-<sha> so the concatenation stays ARC-shaped.
+devrepo="$(mktemp -d)"
+(
+  cd "$devrepo" || exit 1
+  git init -q .
+  git -c user.email=t@example.com -c user.name=t commit -q --allow-empty -m init
+  git tag v0.6
+  git -c user.email=t@example.com -c user.name=t commit -q --allow-empty -m untagged
+) >/dev/null 2>&1
+ri_clean() { (cd "$devrepo" && env -u VERSION -u RELEASE_VERSION -u GITHUB_REF_NAME -u GITHUB_REF "$RI" "$@"); }
+dev_sha="$(cd "$devrepo" && git rev-parse --short HEAD)"
+dev_version="$(ri_clean version)"
+ok "untagged build version is <latest>-<sha>"  "v0.6-$dev_sha"  "$dev_version"
+ok "untagged build version has no date stamp"  ""  "$(printf '%s' "$dev_version" | grep -oE '[0-9]{8}' || true)"
+ok "untagged build phase still resolves"  development-complete  "$(ri_clean phase "$dev_version")"
+(cd "$devrepo" && git checkout -q v0.6)
+ok "tagged build version is the bare tag"  v0.6  "$(ri_clean version)"
+rm -rf "$devrepo"
 
 # --- 3-digit input is rejected ----------------------------------------------
 rc "normalize rejects v0.6.0"  2  "$RI" normalize v0.6.0
