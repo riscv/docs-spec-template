@@ -188,8 +188,24 @@ Should show `-o spec-sample-v0.8-20260612.pdf` on the `asciidoctor-pdf` line.
           echo "Building ${VERSION} (${DATE})"
           make
       ```
-- [ ] **No change needed** to upload globs — `path: build/*.pdf` and
-      `files: build/*.pdf` will pick up the ARC-named PDF automatically.
+- [ ] **No change needed** to the release globs — `files: build/*.pdf` picks up
+      the ARC-named PDF automatically. Release assets stay PDF-only: the ARC
+      submission artifact is the PDF, and the published HTML is the Antora site.
+- [ ] **Widen the artifact upload** to keep the HTML the build already produces:
+      ```yaml
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: Build Artifacts
+          path: |
+            ${{ github.workspace }}/build/*.pdf
+            ${{ github.workspace }}/build/*.html
+          retention-days: 30
+      ```
+      `make` renders both formats on every run (`build-docs` depends on
+      `$(DOCS_HTML)`), so this costs no build time and gives reviewers the
+      rendered document on each PR. `:data-uri:` inlines images and the
+      stylesheet, so the `.html` is self-contained and needs no sidecar files.
 - [ ] This workflow also carries the site version stamp once you do Part B —
       see Step 12. Sync the whole upstream file if you can; it resolves
       `VERSION`/`DATE` once and shares them between the PDF build and the stamp
@@ -561,7 +577,8 @@ When you're ready to advance to the next milestone:
   name ARC expects.
 - **GitHub Actions caching:** if you cache `build/` between runs, clear the
   cache once so a stale PDF from an earlier version doesn't ghost the current
-  output — the release step globs `build/*.pdf` and would attach both.
+  output — the release step globs `build/*.pdf` and would attach both (the
+  artifact upload globs `*.html` too, with the same exposure).
 - **Don't rewrite tags.** Push a new monotonically-greater tag if you need to
   reissue.
 - **`:toc: macro` requires explicit placement.** If you switch from

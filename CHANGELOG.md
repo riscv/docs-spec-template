@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Retain the rendered HTML in the PR build artifact (`build-pdf.yml`). The build
+  already produced it on every run and then discarded it; the upload glob now
+  covers `build/*.html` alongside `build/*.pdf`. Release assets remain PDF-only.
 - Publish the Antora HTML site to the repository's own GitHub Pages site on each
   `v*` release tag, alongside the release PDF (`publish-site.yml`,
   `scripts/build-pages-site.sh`). Requires a one-time *Settings > Pages >
