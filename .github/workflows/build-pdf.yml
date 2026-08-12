@@ -125,13 +125,27 @@ jobs:
           echo "Building ${VERSION} (${DATE})"
           make
 
-      # Upload the built PDF files as a single artifact
+      # Upload the built documents as a single artifact.
+      #
+      # The HTML is rendered on every run whether or not we keep it -- build-docs
+      # depends on $(DOCS_HTML) as well as $(DOCS_PDF) -- so retaining it costs no
+      # extra build time, and reviewers get the rendered document instead of only
+      # the PDF. It travels as one file: the spec sets :data-uri:, so images and
+      # the stylesheet are inlined and nothing sidecar has to ship with it.
+      #
+      # `*` does not cross directory separators, so this cannot sweep up an Antora
+      # build/site/ or build/pages-site/ tree if one ever lands in this job.
+      #
+      # Release assets stay PDF-only on purpose (see the steps below): the ARC
+      # submission artifact is the PDF, and the published HTML is the Antora site.
       - name: Upload Build Artifacts
         id: upload
         uses: actions/upload-artifact@v6
         with:
           name: Build Artifacts
-          path: ${{ github.workspace }}/build/*.pdf
+          path: |
+            ${{ github.workspace }}/build/*.pdf
+            ${{ github.workspace }}/build/*.html
           retention-days: 30
 
       # Put a direct link in the run summary, so reaching the build output is one
