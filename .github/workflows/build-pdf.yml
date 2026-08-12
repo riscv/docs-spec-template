@@ -127,11 +127,31 @@ jobs:
 
       # Upload the built PDF files as a single artifact
       - name: Upload Build Artifacts
+        id: upload
         uses: actions/upload-artifact@v6
         with:
           name: Build Artifacts
           path: ${{ github.workspace }}/build/*.pdf
           retention-days: 30
+
+      # Put a direct link in the run summary, so reaching the build output is one
+      # click from the Checks tab rather than a hunt down the summary page. Same
+      # reasoning as validate-content-source.yml: needs no permissions and works
+      # on fork PRs, unlike a PR comment.
+      - name: Link the build artifacts in the run summary
+        if: steps.upload.outputs.artifact-url != ''
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Built document"
+            echo
+            echo "[Download the build artifacts]($ARTIFACT_URL) — \`${VERSION}\` (${DATE})."
+            echo
+            echo "- Downloading requires being signed in to GitHub (an Actions limitation)."
+            echo "- Retained for 30 days."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Create official release for version tag pushes
       - name: Create Release (Tag Push, Official)
