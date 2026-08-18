@@ -40,7 +40,7 @@ Everything below is about restoring enough of a relationship to make upgrades
 mechanical instead of archaeological.
 
 A second, subtler problem: **in your repo, `v*` tags mean *specification*
-versions, not template versions.** `v0.62` is a milestone of your spec, minted by
+versions, not template versions.** `v0.62` is a milestone of your spec, maintained by
 `version-bot.yml`. Nothing in a downstream repo records which template version it
 was built from — so before you can upgrade, you have to establish a baseline and
 write it down. Section 3 does that.
