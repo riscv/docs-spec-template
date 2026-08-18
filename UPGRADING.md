@@ -53,7 +53,7 @@ Upgrades are tractable because the template has a clean split between files it
 owns and files you own. Classify every path into one of three tiers **once**, and
 every future upgrade becomes a mechanical application of those rules.
 
-### Tier 1 — Template-owned: take upstream wholesale
+### Template-owned
 
 These have no per-repository content. Overwrite them without reading the diff
 closely; if you have edited one of these locally, that edit is a fork you will be
