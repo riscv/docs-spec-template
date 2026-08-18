@@ -108,7 +108,7 @@ Never overwrite; always diff and transplant.
 | `.gitignore` | Usually identical; upstream adds entries as generated artifacts appear |
 | `.gitmodules` | Usually identical — verify rather than assume |
 
-### Tier 3 — Yours: never take upstream
+### Specification-specific files
 
 ```
 modules/ROOT/pages/*.adoc      your chapters
