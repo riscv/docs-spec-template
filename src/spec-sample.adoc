@@ -71,7 +71,7 @@ Attribution 4.0 International License (CC-BY 4.0). The full
 license text is available at
 https://creativecommons.org/licenses/by/4.0/.
 
-Copyright 2025 by RISC-V International.
+Copyright 2026 by RISC-V International.
 
 // Chapter sources live under modules/ROOT/pages/ so they double as standalone
 // Antora pages (each with a level-0 title). leveloffset=+1 demotes those titles
