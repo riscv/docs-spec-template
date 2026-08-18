@@ -92,7 +92,7 @@ nothing per-repository — genuinely tier 1.
 `CONTRIBUTING.md` and `GOVERNANCE.md` are tier 1 *unless* your task group has
 amended them; if so, move them to tier 2.
 
-### Tier 2 — Shared: hand-merge, keep your values
+### Shared files
 
 These carry template structure **and** your customizations on the same lines.
 Never overwrite; always diff and transplant.
