@@ -4,7 +4,7 @@
 upgraded to a later version of the template, and can keep being upgraded
 indefinitely. It is not a one-shot copy. But it is not `git pull` either — the
 mechanism has to be set up deliberately, because GitHub's "Use this template"
-deliberately severs the link.
+severs the link.
 
 **Who this is for:** maintainers of a specification repository that was created
 from `docs-spec-template` (via *Use this template* or a fork) and wants to pick
