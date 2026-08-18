@@ -6,7 +6,7 @@ indefinitely. It is not a one-shot copy. But it is not `git pull` either — the
 mechanism has to be set up deliberately, because GitHub's "Use this template"
 severs the link.
 
-**Who this is for:** maintainers of a specification repository that was created
+**Who this is for:** Maintainers of a specification repository that was created
 from `docs-spec-template` (via *Use this template* or a fork) and wants to pick
 up later toolchain improvements — new workflows, fixed build scripts, ARC
 compliance changes — without losing their specification content.
