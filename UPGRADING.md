@@ -241,7 +241,16 @@ npm install --package-lock-only
 Your `src/<your-spec>.adoc` file is the one file that is both yours and the
 template's at the same time — it names your chapters, but everything around those
 `include::` lines is template scaffolding that changes when ARC requirements
-change. Check it on every upgrade:
+change. Check it on every upgrade, starting with a summary:
+
+```shell
+git diff --stat "$BASELINE".."$TARGET" -- src/
+```
+
+If that prints nothing, the template's assembler did not change between your two
+refs and you can move on to 2.7. If it does show changes, read them — open the
+GitHub compare URL from 2.2 and click through to `src/`, which is easier than
+reading a long AsciiDoc diff in a terminal, or read it locally:
 
 ```shell
 git diff "$BASELINE".."$TARGET" -- src/
@@ -454,8 +463,8 @@ Background material. You do not need any of it to run the procedure above.
 ## A. Which files are whose
 
 The template has a clean split between files it owns and files you own. Classify
-every path once, and every future upgrade becomes a mechanical application of
-those rules.
+every path once, and every future upgrade becomes a routine application of those
+rules rather than a fresh investigation.
 
 ### Template-owned
 
