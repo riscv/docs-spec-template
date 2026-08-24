@@ -73,9 +73,10 @@ Now record it by creating a `.template-version` file in your repository. This fi
 makes future upgrades much easier: it is the only place that records which
 template version your tooling came from.
 
-> **Note:** `.template-version` does not exist in the template today. You are
-> introducing the convention. It is proposed in the pull request that added this
-> guide, and only pays off if the template adopts it.
+> **Note:** you are creating this file yourself — the template does not ship it,
+> and nothing reads it automatically. It is a record for your future self and for
+> the template maintainers. The convention is proposed in the pull request that
+> added this guide, and only pays off if the template adopts it.
 
 First get the full commit SHA of your baseline release:
 
@@ -88,9 +89,10 @@ Then create the file, replacing `template_ref` with your baseline from 1.2 and
 
 ```shell
 cat > .template-version <<'EOF'
-# Which docs-spec-template release this repository's tooling tracks.
-# Updated by the upgrade procedure in UPGRADING.md. Not a spec version --
-# spec versions are the v* git tags minted by version-bot.yml.
+# Records which docs-spec-template release this repository's tooling came from.
+# Nothing reads this file. You update it manually at the end of every upgrade,
+# in step 2.8. This is not a specification version -- spec versions are the
+# v* git tags created by the version-bot.yml workflow.
 template_ref: v4.0.0
 template_sha: 0000000000000000000000000000000000000000
 upgraded_on: 2026-08-17
@@ -102,7 +104,11 @@ Record the SHA as well as the release name. The template's tag namespace is shar
 with its own version-bot test tags (`vtest`, `v0.01`, `v1.0_rc1`), and tags can be
 moved to point at a different commit. A SHA cannot.
 
-### 1.4 If no release has what you need
+### 1.4 If the newest release does not have what you need
+
+The age of your own repository is not a problem here — you can upgrade from any
+baseline, however old. This section is about the other end: the *template's*
+newest numbered release is missing work that is already on its `main` branch.
 
 The template's numbered releases (`v1.0.0` through `v4.0.4`) currently lag behind
 its `main` branch. Several significant features — the Antora dual build, the
@@ -153,18 +159,24 @@ git fetch template
 git log --oneline "$BASELINE".."$TARGET"
 ```
 
+If your baseline is old, expect that list to be long — several hundred commits is
+normal, and you are not meant to read it all. It is there to show you the size of
+the jump. The changelog is the part you actually read.
+
 Then read the template's changelog for the same range. The commit list tells you
 what moved; the changelog tells you what it means for you, because that is where
 breaking toolchain changes are described in prose.
 
 The easiest way to read it is on GitHub, which renders the changelog and lets you
-browse file by file:
+browse file by file. Print the URL for your own two refs:
 
-```
-https://github.com/riscv/docs-spec-template/compare/<BASELINE>...<TARGET>
+```shell
+echo "https://github.com/riscv/docs-spec-template/compare/${BASELINE}...${TARGET#template/}"
 ```
 
-For example: <https://github.com/riscv/docs-spec-template/compare/v4.0.0...main>
+Then open what it prints **in a browser** — this is a web page, not a command.
+For example: <https://github.com/riscv/docs-spec-template/compare/v4.0.0...main>,
+which compares release `v4.0.0` against the current `main`.
 
 > **Note:** the changelog you want is the *template's* `CHANGELOG.md`, not yours.
 > A `git diff -- CHANGELOG.md` in your own repository will show nothing if your
@@ -218,16 +230,36 @@ git diff --stat "$BASELINE".."$TARGET" -- Makefile antora.yml antora-playbook.ym
 ```
 
 That gives you a summary of which files moved and by how much. To read an
-individual file's changes, either open the GitHub compare URL from 2.2 and click
-through the files, or diff one file at a time in the terminal:
+individual file's changes, open the GitHub compare URL from 2.2 and click through
+the files, or diff one file at a time locally:
 
 ```shell
 git diff "$BASELINE".."$TARGET" -- Makefile
 ```
 
-Then apply those changes to your copy, keeping the values listed under
-[Shared files](#shared-files) in the Reference. Concretely, on a `Makefile`
-upgrade you keep your `DOCS` and `SPEC_SHORT` lines and take everything else.
+If reading a diff in the terminal is awkward, write it to a file and open it in
+your editor instead:
+
+```shell
+git diff "$BASELINE".."$TARGET" -- Makefile > template-Makefile.diff
+```
+
+There is no tool for the merge itself — you edit your copy in a text editor. In
+practice:
+
+1. Get the template's version of the file somewhere you can open it:
+
+   ```shell
+   git show "$TARGET":Makefile > /tmp/Makefile.template
+   ```
+
+2. Copy across every change the diff showed, **except** the lines listed as yours
+   in the table under [Shared files](#shared-files) in the Reference.
+3. Re-run the diff against your edited copy. Whatever is left should be only the
+   lines you deliberately kept.
+
+For example, on a `Makefile` upgrade you keep your `DOCS` and `SPEC_SHORT` lines
+and take everything else.
 
 For `package.json`, take the template's `devDependencies` versions and keep your
 `name` field. Then regenerate the lockfile rather than merging it:
@@ -250,10 +282,11 @@ git diff --stat "$BASELINE".."$TARGET" -- src/
 If that prints nothing, the template's assembler did not change between your two
 refs and you can move on to 2.7. If it does show changes, read them — open the
 GitHub compare URL from 2.2 and click through to `src/`, which is easier than
-reading a long AsciiDoc diff in a terminal, or read it locally:
+reading a long AsciiDoc diff in a terminal, or write the diff to a file and open
+it in your editor:
 
 ```shell
-git diff "$BASELINE".."$TARGET" -- src/
+git diff "$BASELINE".."$TARGET" -- src/ > template-src.diff
 ```
 
 Apply any structural change — a new preface block, a moved `toc::[]` or `[index]`,
@@ -310,19 +343,39 @@ regressions:
 tests/release-info-test.sh
 ```
 
-Exit code 0 means everything passed. Next, confirm your version metadata still
-resolves:
+It takes about a second and finishes with a line like `64 passed, 0 failed`. If
+it seems to hang instead, it is blocked on a prompt rather than working — the
+test creates a throwaway git repository and commits into it, so a global git
+setting such as commit signing can stop it dead. Press Ctrl-C and re-run it as
+`bash -x tests/release-info-test.sh` to see which command it stopped on.
+
+Next, confirm your version metadata still resolves:
 
 ```shell
 ./scripts/release-info.sh version
 ./scripts/release-info.sh phase "$(./scripts/release-info.sh version)"
 ```
 
-Then run a full PDF build:
+Then run a full PDF build. This one needs Docker **running**, not merely
+installed: the `Makefile` only checks that the `docker` command exists, and if it
+does, it runs the build inside the RISC-V documentation container. Start Docker
+first.
 
 ```shell
 make clean && make build
 ```
+
+If you would rather build with a locally installed AsciiDoctor toolchain, use
+`make build-no-container` instead.
+
+If the build fails inside `asciidoctor-bibtex`, your specification has no
+bibliography. The `Makefile` loads that extension unconditionally, in `REQUIRES`,
+but the `:bibtex-file:` attribute that points it at a `.bib` lives in your
+`src/<your-spec>.adoc`. Either add that attribute and a `.bib` under
+`modules/ROOT/resources/`, or remove `--require=asciidoctor-bibtex` from
+`REQUIRES`. If you remove it, that becomes a local `Makefile` change you have to
+carry through every future merge in 2.5 — so write it down with your other
+`Makefile` values.
 
 Now check the built PDF's filename:
 
@@ -519,7 +572,7 @@ keeping your own values from this table.
 
 | File | What is yours |
 | --- | --- |
-| `Makefile` | `DOCS` (your top-level `.adoc`), `SPEC_SHORT` |
+| `Makefile` | `DOCS` (your top-level `.adoc`), `SPEC_SHORT`, and any local `REQUIRES` change (see 3.1) |
 | `antora.yml` | `name`, `title`, `asamBibliography`; `version`/`page-*` are **generated**, never edited manually |
 | `antora-playbook.yml` | `start_page: <your-component>::index.adoc` |
 | `package.json` | `name` field; devDependency **versions** are template-owned |
