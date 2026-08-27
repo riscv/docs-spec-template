@@ -35,8 +35,9 @@ git remote add template https://github.com/riscv/docs-spec-template.git
 git fetch template
 ```
 
-Name it `template`, not `upstream`. If your repository is also a fork of
-something else, `upstream` will already be taken.
+The remote is named `template` rather than the more usual `upstream` because if
+your repository is also a fork of something else, `upstream` will already be
+taken.
 
 ### 1.2 Find your baseline
 
@@ -78,7 +79,9 @@ template version your tooling came from.
 > the template maintainers. The convention is proposed in the pull request that
 > added this guide, and only pays off if the template adopts it.
 
-First get the full commit SHA of your baseline release:
+First get the full commit SHA of the baseline you picked in 1.2. Substitute your
+own baseline here — the sample output above happened to favour `v4.0.0`, but
+yours may be any of the releases, or `template/main`:
 
 ```shell
 git rev-parse v4.0.0
@@ -104,21 +107,26 @@ Record the SHA as well as the release name. The template's tag namespace is shar
 with its own version-bot test tags (`vtest`, `v0.01`, `v1.0_rc1`), and tags can be
 moved to point at a different commit. A SHA cannot.
 
-### 1.4 If the newest release does not have what you need
+### 1.4 Optional: check whether the newest release has what you need
 
 The age of your own repository is not a problem here — you can upgrade from any
-baseline, however old. This section is about the other end: the *template's*
-newest numbered release is missing work that is already on its `main` branch.
+baseline, however old. This section is about the other end: whether the
+*template's* newest numbered release actually contains the work you are
+upgrading for.
 
-The template's numbered releases (`v1.0.0` through `v4.0.4`) currently lag behind
-its `main` branch. Several significant features — the Antora dual build, the
-GitHub Pages publish, and the pull request preview artifact — are finished and
-merged to `main` but have not been included in a numbered release yet. They are
-listed under `[Unreleased]` in the template's
-[`CHANGELOG.md`](https://github.com/riscv/docs-spec-template/blob/main/CHANGELOG.md).
+**How to tell.** Open the template's
+[`CHANGELOG.md`](https://github.com/riscv/docs-spec-template/blob/main/CHANGELOG.md)
+and read the `[Unreleased]` section at the top. Anything listed there is merged
+to `main` but is **not** in any numbered release yet. Today that includes the
+Antora dual build, the GitHub Pages publish, and the pull request preview
+artifact — the template's numbered releases (`v1.0.0` through `v4.0.4`)
+currently lag behind its `main` branch.
 
-If you need one of those features, use a commit SHA from `template/main` as your
-baseline instead of a release name:
+If nothing under `[Unreleased]` matters to you, use the newest release and go on
+to section 2.
+
+If you do need something listed there, use a commit SHA from `template/main` as
+your baseline instead of a release name:
 
 ```shell
 git rev-parse template/main
@@ -127,6 +135,10 @@ git rev-parse template/main
 Record that SHA in `.template-version` and leave `template_ref: template/main`.
 Always pin to a specific SHA. Do not upgrade against `template/main` as a moving
 target, or you will not be able to tell what changed between two upgrades.
+
+Once the template's release line catches up with `main`, this section stops
+being necessary — `[Unreleased]` will be empty and the newest release will have
+everything.
 
 ---
 
@@ -141,9 +153,10 @@ shell variable, and the rest of the commands in this section will use it:
 TARGET=template/main
 ```
 
-Use `template/main` to take the newest template code, or a release name such as
-`v4.0.4` to move to a specific numbered release. If you are pinning to a commit
-(see 1.4), use the SHA.
+`template/main` applies the latest template code, which is what you normally
+want. If you pinned to a commit SHA in 1.4, use that SHA here instead. If you
+need to land on a specific *older* template version, contact `help@riscv.org`
+rather than working it out from this guide.
 
 Set your recorded baseline the same way, taking the value of `template_sha` from
 your `.template-version` file:
@@ -152,7 +165,10 @@ your `.template-version` file:
 BASELINE=<the template_sha from .template-version>
 ```
 
-### 2.2 See what changed
+### 2.2 Optional: see what changed
+
+You can skip this section and go straight to 2.3. It is here for when you want
+to know what is arriving before you take it.
 
 ```shell
 git fetch template
@@ -161,11 +177,11 @@ git log --oneline "$BASELINE".."$TARGET"
 
 If your baseline is old, expect that list to be long — several hundred commits is
 normal, and you are not meant to read it all. It is there to show you the size of
-the jump. The changelog is the part you actually read.
+the jump.
 
 Then read the template's changelog for the same range. The commit list tells you
 what moved; the changelog tells you what it means for you, because that is where
-breaking toolchain changes are described in prose.
+breaking toolchain changes are described.
 
 The easiest way to read it is on GitHub, which renders the changelog and lets you
 browse file by file. Print the URL for your own two refs:
@@ -214,8 +230,8 @@ git diff --cached --stat
 ```
 
 If a file shows up here that you did change on purpose, stop and read that one
-diff before continuing. See the note in the Reference about local edits to
-template-owned files.
+diff before continuing. See [Template-owned](#template-owned) in the Reference
+for what to do about a local edit to a template-owned file.
 
 ### 2.5 Merge the shared files manually
 
@@ -273,30 +289,63 @@ npm install --package-lock-only
 Your `src/<your-spec>.adoc` file is the one file that is both yours and the
 template's at the same time — it names your chapters, but everything around those
 `include::` lines is template scaffolding that changes when ARC requirements
-change. Check it on every upgrade, starting with a summary:
+change.
+
+**What you are comparing, and why.** The file you diff is the template's own
+sample assembler, `src/spec-sample.adoc`, at your two refs. That tells you what
+scaffolding changed upstream. You then make the same change **by hand** in your
+own `src/<your-spec>.adoc`. You never copy `spec-sample.adoc` over your own
+file: it carries the sample specification's chapters and its own `spec_short`
+value, not yours.
+
+Start with a summary:
 
 ```shell
 git diff --stat "$BASELINE".."$TARGET" -- src/
 ```
 
 If that prints nothing, the template's assembler did not change between your two
-refs and you can move on to 2.7. If it does show changes, read them — open the
-GitHub compare URL from 2.2 and click through to `src/`, which is easier than
-reading a long AsciiDoc diff in a terminal, or write the diff to a file and open
-it in your editor:
+refs and you can move on to 2.7.
+
+If it does show changes, write the full diff to a file and open it in your
+editor, or click through to `src/` in the GitHub compare URL from 2.2, which is
+easier to read than a long AsciiDoc diff in a terminal:
 
 ```shell
 git diff "$BASELINE".."$TARGET" -- src/ > template-src.diff
 ```
 
-Apply any structural change — a new preface block, a moved `toc::[]` or `[index]`,
-a new `ifndef::` default — to your own assembler, keeping your `include::` lines.
-Never copy `src/spec-sample.adoc` over your own file.
+Then work through the diff one hunk at a time. Each hunk is one of two things:
 
-This is the most common reason a repository upgrades cleanly and then fails ARC
-review, because the compliance requirements live in exactly the file that
-ownership rules say not to touch. See
-[The one file that is both](#the-one-file-that-is-both) in the Reference.
+- **A change to an attribute, a `[preface]` block, `toc::[]`, a `list-of::`
+  macro, or `[index]`.** This is scaffolding. Make the same change, in the same
+  position, in your own `src/<your-spec>.adoc`.
+- **A change to an `include::` line.** This is the sample specification's own
+  chapters. Ignore it — your `include::` lines are yours.
+
+For example, if the diff shows the template adding an attribute default:
+
+```diff
+  ifndef::phase_display[:phase_display: {phase}]
++ ifndef::milestone_id[:milestone_id: {phase}]
+  ifndef::spec_short[:spec_short: spec-sample]
+```
+
+then add that one `ifndef::milestone_id[...]` line to your own file in the same
+place. The `spec_short` line on either side of it stays **yours** — the
+template's value is `spec-sample`, and copying it in would break your PDF
+filename.
+
+When you have finished, build the PDF (3.1) and check pages 1 and 2.
+
+> **If this step looks wrong to you, stop and ask rather than guessing.** A
+> mistake here is the most common reason a repository upgrades cleanly and then
+> fails ARC review, because the compliance requirements live in exactly the file
+> that ownership rules say not to touch. Email `help@riscv.org` or open an issue
+> on the template with `template-src.diff` and your `src/<your-spec>.adoc`
+> attached, and someone will do this merge with you. See
+> [The one file that is both](#the-one-file-that-is-both) in the Reference for
+> the background.
 
 ### 2.7 Update the submodule
 
@@ -587,9 +636,13 @@ keeping your own values from this table.
 `src/<your-spec>.adoc` is the hardest file in this list, because ownership and
 structure point in opposite directions. The file is yours — it names your
 chapters — but everything around the `include::` lines is template scaffolding
-that changes when ARC requirements change: the `[preface] == Document State`
-block, the `toc::[]` placement, the `list-of::` macros, the `[index]` position
-before the bibliography, and the `ifndef::` attribute defaults.
+that changes when ARC requirements change:
+
+- the `ifndef::` attribute defaults at the top of the file
+- the `[preface] == Document State` block
+- the `toc::[]` placement
+- the `list-of::` macros for figures, tables, and listings
+- the `[index]` position, before the bibliography
 
 > Compare `src/spec-sample.adoc` against your own assembler on every upgrade,
 > even though you never copy it over. This is the single most common source of a
