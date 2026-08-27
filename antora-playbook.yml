@@ -20,6 +20,12 @@ content:
     - url: .
       branches: HEAD
 
+  # Shared assets - component: common (from external docs-resources repo)
+    - url: https://github.com/riscv/docs-resources.git
+      branches: main
+      start_path: /
+      name: common
+
 # Shared AsciiDoc rendering attributes, MIRRORED from the central playbook's
 # `asciidoc.attributes` block (github.com/riscv-admin/antora.riscv.org). These
 # live here, in the LOCAL preview playbook -- NOT in antora.yml, where they would
