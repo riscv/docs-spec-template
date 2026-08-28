@@ -21,7 +21,24 @@ name: Publish site to GitHub Pages
 # integration". Once the site exists, enablement is a no-op.
 
 on:
+  # Called by version-bot.yml immediately after a release tag is cut, so the
+  # Pages site follows a release without depending on the tag push firing an
+  # event (it cannot: version-bot tags with GITHUB_TOKEN on purpose).
+  workflow_call:
+    inputs:
+      release_version:
+        description: Release version to publish (e.g. v0.62). Must already be tagged.
+        required: true
+        type: string
+
   push:
+    # Publish the tip of main as the `dev` version, so the site tracks merged
+    # content instead of standing still between releases. build-pages-site.sh
+    # resolves an untagged build to <latest>-<sha> and publishes it under the
+    # short fixed label `dev` (DEV_VERSION_LABEL), so repeated merges refresh one
+    # path rather than orphaning a new /<sha>/ on every commit.
+    branches:
+      - main
     tags:
       - v*
   # Republish on demand -- e.g. after fixing content on a release, or to bring up
@@ -78,6 +95,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
+          # When version-bot calls us, publish the TAGGED commit.
+          ref: ${{ inputs.release_version || github.ref }}
           fetch-depth: 0
           submodules: recursive
 
@@ -117,17 +136,26 @@ jobs:
           enablement: true
 
       # Version/date resolution mirrors build-pdf.yml so the published site
-      # version matches the released PDF. On a tag push the tag IS the version;
+      # version matches the released PDF. On a version-bot call or a tag push the
+      # tag IS the version;
       # the date is taken from the tagged commit rather than "today" so that
       # re-running this workflow later republishes an identical site. A manual
-      # run leaves both empty, and the script falls back to release-info.sh.
+      # run -- and a push to main -- leaves both empty, and the script falls back
+      # to release-info.sh, which yields the <latest>-<sha> dev version.
       - name: Resolve release version
         id: release
         run: |
           set -euo pipefail
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            version="${{ github.ref_name }}"
-            date="$(git log -1 --format=%cs "${{ github.ref_name }}")"
+          tag=""
+          if [ -n "${{ inputs.release_version }}" ]; then
+            tag="${{ inputs.release_version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            tag="${{ github.ref_name }}"
+          fi
+
+          if [ -n "$tag" ]; then
+            version="$tag"
+            date="$(git log -1 --format=%cs "$tag")"
           else
             version=""
             date=""

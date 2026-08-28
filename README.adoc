@@ -164,10 +164,21 @@ The version bot is triggered manually, by `workflow_dispatch` on `.github/workfl
 
 1. A maintainer dispatches `.github/workflows/version-bot.yml` against `main`.
 2. The bot finds the latest `v*` tag and creates the next revision tag (`vMAJOR.MINOR`) for the current `main` commit.
-3. The new tag triggers `.github/workflows/build-pdf.yml`.
-4. The build uses the tag as `:revnumber:` and sets `:revdate:` to the build date.
+3. The bot then calls `.github/workflows/build-pdf.yml` and `.github/workflows/publish-site.yml` directly, passing the new version.
+4. The build uses the tag as `:revnumber:` and sets `:revdate:` to the tagged commit's date, so rebuilding a tag reproduces an identical PDF.
 5. `scripts/release-info.sh` derives phase (`:phase:`), display state (`:phase_display:`), warning text (`:phase_notice:`), and `:revremark:` from the version milestone.
-6. Tag-triggered builds publish GitHub Releases with the generated PDF artifacts.
+6. The build publishes a GitHub Release with the generated PDF, and opens the site version stamp PR.
+7. The site publish deploys the release to GitHub Pages.
+
+[NOTE]
+====
+The bot invokes those workflows rather than relying on its tag push to trigger
+them, and tags with the built-in `GITHUB_TOKEN` on purpose. GitHub refuses to let
+`GITHUB_TOKEN` start a workflow run, which makes the tag push inert -- so the
+release chain needs no personal access token, and cannot double-fire by
+triggering `push: tags` alongside the direct call. A tag pushed *by hand* still
+builds and releases through `push: tags: v*` as before.
+====
 
 Version increment policy:
 
@@ -182,6 +193,18 @@ Version increment policy:
 * `v0.9`: `Frozen` (revisions `v0.91`–`v0.98`)
 * `v0.99`: `Ratification-Ready`
 * `v1.0`: `Ratified`
+
+=== Development builds
+
+Pull requests and pushes to `main` produce a *development* build: the PDF and HTML
+are uploaded as a 30-day workflow artifact, and pushes to `main` also republish the
+Antora site under the `dev` version. Nothing is tagged and nothing is released.
+
+Development builds are versioned `v<latest-tag>-<short-sha>`, identical to what a
+local `make` produces. They deliberately do **not** claim the next revision number:
+a preview stamped `v0.02` spends a version that has not been cut, so the real
+`v0.02` release would later ship a second, different document under the same name.
+Any version carrying a `-<sha>` suffix is refused by every release step.
 
 === Official vs prerelease policy
 
@@ -199,24 +222,36 @@ All other versions are published as prereleases (`prerelease=true`).
 
 When a new tag crosses into a different phase than the previous tag, the bot opens a PR that updates `SPEC_STATE.md` for maintainer review. This PR is the checkpoint for governance/process updates required by the new phase.
 
-=== Required repository secret
+=== Recommended repository secret
 
 Set a `GHTOKEN` repository secret in every repository created from this template (Settings -> Secrets and variables -> Actions).
 
-Without it, the version bot and the release build fall back to the built-in `GITHUB_TOKEN`. GitHub refuses to let a `GITHUB_TOKEN`-authored pull request start further workflow runs, so every check on a bot-opened PR -- the PDF build, `pre-commit`, Vale, and the Antora content-source validation -- is created in the `action_required` state and waits for a maintainer to press "Approve and run". The PR itself is still correct; only its checks stall.
+`GHTOKEN` is *recommended*, not required: the release chain itself (tag -> PDF ->
+release -> Pages) runs on the built-in `GITHUB_TOKEN`.
+
+What needs it are the checks on the PRs these workflows open -- the milestone PR
+and the site version stamp PR. GitHub refuses to let a `GITHUB_TOKEN`-authored
+pull request start further workflow runs, so every check on a bot-opened PR -- the
+PDF build, `pre-commit`, Vale, and the Antora content-source validation -- is
+created in the `action_required` state and waits for a maintainer to press
+"Approve and run". The PR itself is still correct; only its checks stall.
 
 `GHTOKEN` may be either:
 
 * A fine-grained personal access token scoped to the repository with `Contents: read and write`, `Pull requests: read and write`, and `Workflows: read and write`. Simplest to set up; tied to one person's account and expires.
 * A GitHub App installation token minted per run with `actions/create-github-app-token`. Preferred for repositories with more than one maintainer, since it is not tied to an individual.
 
-=== Manual build overrides
+=== Manual builds
 
-`workflow_dispatch` for `.github/workflows/build-pdf.yml` supports:
+`workflow_dispatch` for `.github/workflows/build-pdf.yml` is a *preview* build: it
+renders the PDF and HTML for the current `main` and uploads them as a workflow
+artifact. It takes no inputs, and it neither tags nor releases anything.
 
-* `release_version` to force an explicit version.
-* `target_phase` to force a milestone floor (`Developed` -> `v0.6`, `Stable` -> `v0.8`, and so on).
-* With `target_phase=auto-next` (default), manual runs use the latest existing tag if that tag is between milestone floors; otherwise they compute the next revision.
+Releasing has exactly one entry point, `.github/workflows/version-bot.yml`. It
+previously had two -- build-pdf's dispatch could cut its own tag and release,
+which meant a milestone cut there produced a release with no `SPEC_STATE.md`
+transition and no milestone PR, and its `auto-next` handling re-released the
+latest tag on every run instead of advancing.
 
 === Manual version jumps
 
