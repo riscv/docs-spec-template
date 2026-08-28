@@ -22,6 +22,13 @@ name: Publish site to GitHub Pages
 
 on:
   push:
+    # Publish the tip of main as the `dev` version, so the site tracks merged
+    # content instead of standing still between releases. build-pages-site.sh
+    # resolves an untagged build to <latest>-<sha> and publishes it under the
+    # short fixed label `dev` (DEV_VERSION_LABEL), so repeated merges refresh one
+    # path rather than orphaning a new /<sha>/ on every commit.
+    branches:
+      - main
     tags:
       - v*
   # Republish on demand -- e.g. after fixing content on a release, or to bring up
@@ -120,7 +127,8 @@ jobs:
       # version matches the released PDF. On a tag push the tag IS the version;
       # the date is taken from the tagged commit rather than "today" so that
       # re-running this workflow later republishes an identical site. A manual
-      # run leaves both empty, and the script falls back to release-info.sh.
+      # run -- and a push to main -- leaves both empty, and the script falls back
+      # to release-info.sh, which yields the <latest>-<sha> dev version.
       - name: Resolve release version
         id: release
         run: |

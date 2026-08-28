@@ -29,6 +29,8 @@ on:
         default: false
   pull_request:
   push:
+    branches:
+      - main
     tags:
       - v*
 
@@ -41,6 +43,7 @@ jobs:
     outputs:
       version: ${{ steps.set_build_version.outputs.version }}
       date: ${{ steps.set_build_version.outputs.date }}
+      releasable: ${{ steps.classify.outputs.releasable }}
 
     steps:
       # Checkout the repository
@@ -54,18 +57,27 @@ jobs:
       - name: Pull Container
         run: docker pull riscvintl/riscv-docs-base-container-image:latest
 
-      # Set VERSION for all builds (manual overrides optional).
-      # Tag pushes use the exact tag; PR builds compute next patch.
-      # Manual builds support explicit version, milestone floor, or auto behavior.
+      # Set VERSION and DATE for this build.
+      #
+      # DEVELOPMENT builds (pull_request, push to main) resolve to
+      # <latest-tag>-<sha> via release-info.sh -- byte-for-byte what a local
+      # `make` produces. They must NOT compute `next`: a preview stamped with the
+      # next release number spends a version that has not been cut, so the
+      # eventual real release ships a second, different document under the same
+      # name. (This is exactly how a PR preview and a later release both came out
+      # as v0.02.) Nothing is released from these builds -- see RELEASABLE below.
+      #
+      # RELEASE builds are a tag push, or a manual dispatch with an explicit
+      # version / milestone floor / auto-next.
       - name: Set build version
         id: set_build_version
         run: |
           set -euo pipefail
 
           # Auto-increment (`next`) refuses at a milestone gate with rc=10 (the
-          # 0.01 band before the next manual milestone is exhausted). For a
-          # preview/non-release build that is not fatal: fall back to rebuilding
-          # the latest tag rather than failing the run.
+          # 0.01 band before the next manual milestone is exhausted). That is not
+          # an error -- it means a maintainer must cut the milestone by hand -- so
+          # rebuild the latest tag rather than failing the run.
           next_or_latest() {
             local base="$1" out
             if out="$(./scripts/release-info.sh next "$base" 2>/dev/null)"; then
@@ -75,37 +87,63 @@ jobs:
             fi
           }
 
+          # Empty unless a tag pins it; filled in below.
+          date=""
+
           if [ -n "${{ github.event.inputs.release_version }}" ]; then
             version="$(./scripts/release-info.sh normalize "${{ github.event.inputs.release_version }}")"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.target_phase }}" != "auto-next" ]; then
             version="$(./scripts/release-info.sh phase-floor-version "${{ github.event.inputs.target_phase }}")"
           elif [ "${{ github.ref_type }}" = "tag" ]; then
             version="$(./scripts/release-info.sh normalize "${{ github.ref_name }}")"
+            # Take the date from the TAGGED COMMIT, not from today. Rebuilding a
+            # tag must reproduce an identical PDF filename and an identical
+            # antora.yml stamp; with "today" every rebuild opened a stamp PR whose
+            # entire diff was page-revdate, and misdated the released version.
+            # Mirrors the same resolution in publish-site.yml.
+            date="$(git log -1 --format=%cs "${{ github.ref_name }}")"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            latest="$(./scripts/release-info.sh latest)"
-            latest_phase="$(./scripts/release-info.sh phase "$latest")"
-            latest_floor="$(./scripts/release-info.sh phase-floor-version "$latest_phase")"
-            if [ "$latest" != "v0.0" ] && [ "$latest" != "$latest_floor" ]; then
-              # If current tag is between milestone floors, rebuild/re-release current latest tag.
-              version="$latest"
-            else
-              version="$(next_or_latest "$latest")"
-            fi
+            # Auto-next: advance to the next interim version.
+            #
+            # This used to read "if latest is between milestone floors, rebuild
+            # latest" -- an inverted test, because EVERY interim version is
+            # between floors. It pinned auto-next to re-releasing the latest tag
+            # forever, which is what produced the v0.01 -> v0.02 -> v0.01
+            # sequence. Advance unconditionally; next_or_latest falls back only
+            # at a milestone gate, which target_phase exists to cross.
+            version="$(next_or_latest "$(./scripts/release-info.sh latest)")"
           else
-            latest="$(./scripts/release-info.sh latest)"
-            version="$(next_or_latest "$latest")"
+            # Development build. release-info.sh yields <latest>-<sha>.
+            version="$(./scripts/release-info.sh version)"
           fi
-          # Resolve the build date ONCE so the PDF and the Antora version stamp
-          # share it exactly (no midnight-boundary drift between separate steps).
-          date="$(date +%Y-%m-%d)"
+
+          # Resolve the date ONCE so the PDF and the Antora version stamp share it
+          # exactly (no midnight-boundary drift between separate steps).
+          date="${date:-$(date +%Y-%m-%d)}"
+
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "DATE=$date" >> "$GITHUB_ENV"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "date=$date" >> "$GITHUB_OUTPUT"
 
       - name: Classify release type
+        id: classify
         run: |
           set -euo pipefail
+
+          # A development version carries a -<sha> suffix (release-info.sh
+          # get_version). It is not releasable, and every release/stamp step below
+          # is gated on this rather than on the event name -- so no trigger, now or
+          # added later, can cut a GitHub Release named after an untagged commit.
+          if [ "${VERSION#*-}" != "${VERSION}" ]; then
+            releasable=false
+            echo "$VERSION is a development version; this run publishes nothing."
+          else
+            releasable=true
+          fi
+          echo "RELEASABLE=$releasable" >> "$GITHUB_ENV"
+          echo "releasable=$releasable" >> "$GITHUB_OUTPUT"
+
           # Milestone-gate tags (v0.6, v0.8, v0.9, v0.99, v1.0) get a
           # non-prerelease GitHub Release. release-info.sh is the single source of
           # truth for which versions are milestones.
@@ -178,7 +216,7 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE == 'true'
+        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE == 'true' && env.RELEASABLE == 'true'
 
       # Create prerelease for non-milestone version tag pushes
       - name: Create Release (Tag Push, Pre-release)
@@ -191,7 +229,7 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE != 'true'
+        if: github.event_name == 'push' && github.ref_type == 'tag' && env.OFFICIAL_RELEASE != 'true' && env.RELEASABLE == 'true'
 
       # Create manual release for milestone versions
       - name: Create Release (Manual, Official)
@@ -204,7 +242,7 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE == 'true'
+        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE == 'true' && env.RELEASABLE == 'true'
 
       # Create manual prerelease for non-milestone versions
       - name: Create Release (Manual, Pre-release)
@@ -217,7 +255,7 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true'
+        if: github.event_name == 'workflow_dispatch' && env.OFFICIAL_RELEASE != 'true' && env.RELEASABLE == 'true'
 
   # Keep the Antora HTML site version in EXACT lockstep with the PDF this run just
   # built: stamp the SAME resolved version/date into antora.yml on main, so the
@@ -239,8 +277,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: >-
-      github.event_name != 'pull_request' &&
-      github.event.inputs.draft != 'true'
+      needs.build.outputs.releasable == 'true' &&
+      github.event.inputs.draft != 'true' &&
+      (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: write
       pull-requests: write
@@ -268,12 +307,17 @@ jobs:
           echo "main antora.yml version: ${current:-<none>}; released version: $VERSION"
 
           # Monotonic guard: never stamp main backwards (e.g. when an old tag is
-          # rebuilt). Skip if main is already at a version >= this release.
-          # Compare by DECIMAL order via release-info.sh -- `sort -V` would rank
-          # v0.8 below v0.61 and stamp the site backwards.
-          if [ -n "$current" ] && [ "$current" != "~" ] && [ "$current" != "$VERSION" ]; then
-            if [ "$(./scripts/release-info.sh compare "$current" "$VERSION")" = "1" ]; then
-              echo "main is already at $current (> $VERSION); skipping stamp."
+          # rebuilt). Compare by DECIMAL order via release-info.sh -- `sort -V`
+          # would rank v0.8 below v0.61 and stamp the site backwards.
+          #
+          # Skip at >=, not just at >. At an EQUAL version the only field that can
+          # still differ is page-revdate, and a PR that moves a released version's
+          # date forward is pure churn that also misdates the release. (Rebuilding
+          # v0.01 a day later opened exactly such a PR; the tag-derived DATE in the
+          # build job closes the other half of that hole.)
+          if [ -n "$current" ] && [ "$current" != "~" ]; then
+            if [ "$(./scripts/release-info.sh compare "$current" "$VERSION")" != "-1" ]; then
+              echo "main is already at $current (>= $VERSION); skipping stamp."
               echo "changed=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
