@@ -14,11 +14,21 @@ name: Publish site to GitHub Pages
 # be reproduced locally.
 #
 # One-time setup in a repo seeded from this template: a repository admin must set
-# Settings -> Pages -> Source to "GitHub Actions". The configure-pages step below
-# asks for that automatically (enablement: true) and it works wherever the
-# organization permits it, but the RISC-V org restricts Pages site creation, so
-# the workflow token is refused there with "Resource not accessible by
-# integration". Once the site exists, enablement is a no-op.
+# Settings -> Pages -> Source to "GitHub Actions", ideally before the first push
+# to main -- this workflow runs on every push to main, not only on tags, so until
+# Pages exists each push leaves a failed run behind. The configure-pages step
+# below asks for that automatically (enablement: true), but GITHUB_TOKEN is
+# refused with "Resource not accessible by integration": creating a Pages site is
+# an admin-level operation the Actions app cannot perform on a repo that has
+# none, regardless of the pages: write grant below. That is a limitation of the
+# Actions token, NOT an org policy -- there is no org setting to change. Once the
+# site exists, enablement is a no-op.
+#
+# Set that source directly to "GitHub Actions". If a repo is left on "Deploy from
+# a branch" first, GitHub queues a run of its built-in pages-build-deployment
+# workflow that survives the switch and can deploy AFTER the first Actions
+# deployment, overwriting the site with the repo root -- a live 404 from a run
+# that reported success. Re-run this workflow to recover; it does not recur.
 
 on:
   # Called by version-bot.yml immediately after a release tag is cut, so the

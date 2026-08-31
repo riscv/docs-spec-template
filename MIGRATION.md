@@ -513,13 +513,21 @@ else depends on it.
       /modules/ROOT/images/risc-v_logo.svg
       ```
 - [ ] **Have a repository admin enable Pages once**: *Settings → Pages → Build
-      and deployment → Source: GitHub Actions*. The workflow asks for this
-      automatically (`enablement: true`), but the RISC-V organization restricts
-      Pages site creation, so the workflow's token is refused with
-      `Resource not accessible by integration`. Equivalent API call:
+      and deployment → Source: GitHub Actions*, before the first push to `main`
+      — the workflow runs on every push to `main`, not only on tags. The workflow
+      asks for this automatically (`enablement: true`), but the built-in
+      `GITHUB_TOKEN` is refused with `Resource not accessible by integration`:
+      that is a limitation of the Actions token, **not** an organization policy,
+      so there is no org-level setting to change. Equivalent API call, with an
+      admin token:
       ```bash
       gh api -X POST repos/<org>/<repo>/pages -f build_type=workflow
       ```
+      Set the source *directly* to "GitHub Actions". If it is set to "Deploy from
+      a branch" first, GitHub queues a build of its built-in
+      `pages-build-deployment` workflow that can land after your first Actions
+      deployment and overwrite the site with the repo root — a live 404 from a
+      run that reported success. Re-run `publish-site.yml` to recover.
       Pages also needs a public repo unless your org is on Team/Enterprise; the
       job skips itself on private repos rather than failing your release.
 - [ ] Verify locally before pushing (needs Kroki, as in Step 10):

@@ -38,9 +38,12 @@ When instantiating a new repository from this template, perform these one-time s
    *(Alternatively, configure a repository secret named `GHTOKEN` with a Personal Access Token).*
 2. **Initialize Submodules**:
    Run `git submodule update --init --recursive` in your local workspace.
-3. **Enable GitHub Pages** (only if you want the published HTML site):
+3. **Enable GitHub Pages**:
    Go to *Settings* -> *Pages* -> *Build and deployment* -> Set *Source* to *GitHub Actions*.
-   The publish workflow attempts this automatically, but the RISC-V organization restricts Pages site creation, so the workflow's built-in token cannot do it — a repository admin must do it once by hand. After that, every release publishes without further intervention.
+   Do this **before the first push to `main`**. `publish-site.yml` runs on every push to `main`, not only on release tags, so until Pages is enabled each push leaves a failed run behind.
+   The workflow asks for this automatically (`enablement: true`), but the built-in `GITHUB_TOKEN` cannot create a Pages site — it is refused with `Resource not accessible by integration`. That is a limitation of the Actions token itself, *not* an organization policy: there is no org-level setting to change, and a repository admin must do it once by hand. After that, every release publishes without further intervention.
+   Set the source **directly** to *GitHub Actions*. If it is set to *Deploy from a branch* first, GitHub queues a run of its own built-in `pages-build-deployment` workflow, and that run can finish *after* your first Actions deployment and overwrite the site with the repository root — a live 404 from a workflow that reported success. Recover by re-running `publish-site.yml` once the stray build has finished; it does not recur.
+   Pages needs a public repository unless your organization is on Team/Enterprise; the job skips itself on private repos rather than failing the release.
 
 == Building the Document
 
@@ -135,7 +138,7 @@ To check bibliography output, build with `make` (the PDF/HTML use the `asciidoct
 
 Every `v*` release tag also publishes the specification as an HTML site on this repository's own GitHub Pages site, alongside the release PDF, via `.github/workflows/publish-site.yml`. The site lands at `https://<org>.github.io/<repo>/`.
 
-This needs the one-time *Enable GitHub Pages* step from the <<Repository Setup Checklist>> above. The workflow tries to enable Pages itself, but the RISC-V organization restricts Pages site creation, so its token is refused (`Resource not accessible by integration`) and a repository admin has to set the source to *GitHub Actions* once by hand. Everything after that is automatic.
+This needs the one-time *Enable GitHub Pages* step from the <<Repository Setup Checklist>> above. The workflow tries to enable Pages itself, but its `GITHUB_TOKEN` is refused (`Resource not accessible by integration`) — a limitation of the Actions token rather than an organization policy — so a repository admin has to set the source to *GitHub Actions* once by hand. Everything after that is automatic.
 
 The site version is stamped from the same source as the PDF, so the two always match. A build with no release tag to name it — such as the first manual run in a new repository — publishes under `/spec-sample/dev/` rather than a long `vX.YY-<sha>-<date>` path, which keeps the URL stable and the site navigation readable; the exact commit is still shown on the cover page.
 

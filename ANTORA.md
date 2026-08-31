@@ -98,15 +98,29 @@ this is the primary HTML output; for specs that *are* consumed centrally,
 - Workflow: `.github/workflows/publish-site.yml` — runs on `v*` tag pushes and on
   manual dispatch, and deploys via `actions/deploy-pages`.
 - Build: `scripts/build-pages-site.sh` — the whole build, runnable locally.
-- Setup in a seeded repo: **one manual step**. `actions/configure-pages` is
-  configured with `enablement: true` and will turn Pages on by itself wherever
-  it is allowed to — but the RISC-V organization restricts Pages site creation,
-  so the workflow token is refused with `Resource not accessible by integration`
-  and a repository admin must set *Settings → Pages → Source* to "GitHub
-  Actions" once. Equivalent API call, with an admin token:
+- Setup in a seeded repo: **one manual step**, best done before the first push
+  to `main` — the workflow runs on every push to `main`, not only on tags, so
+  until Pages exists each push leaves a failed run behind.
+  `actions/configure-pages` is configured with `enablement: true` and will turn
+  Pages on by itself wherever it is allowed to, but the workflow's `GITHUB_TOKEN`
+  is refused with `Resource not accessible by integration`: creating a Pages site
+  is an admin-level operation that the Actions app cannot perform on a repo that
+  has none, regardless of the `pages: write` grant the job holds. This is a
+  limitation of the Actions token, **not** an organization policy — `riscv` has
+  `members_can_create_pages: true`, so there is no org setting to change and no
+  point hunting for one. A repository admin must set *Settings → Pages → Source*
+  to "GitHub Actions" once. Equivalent API call, with an admin token:
   `gh api -X POST repos/<org>/<repo>/pages -f build_type=workflow`. Once the
   site exists, `enablement: true` is a no-op and releases publish unattended.
   The job skips itself on private repos, where Pages needs Team/Enterprise.
+- Set that source **directly** to "GitHub Actions". If a repo is ever left on
+  "Deploy from a branch" first, GitHub queues a run of its built-in
+  `pages-build-deployment` workflow that survives the switch, and it can deploy
+  *after* the first Actions deployment — overwriting the site with the repository
+  root, which has no `index.html`. The symptom is a live 404 from a
+  `publish-site.yml` run that reported success; check the `github-pages`
+  deployment list for a `pages-build-deployment` entry newer than yours. Re-run
+  `publish-site.yml` once the stray build has finished; it does not recur.
 
 ### How the playbook is derived
 
