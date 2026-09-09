@@ -48,6 +48,47 @@ is the sequence of actions; ANTORA.md is the rationale.
 > `.github/workflows/publish-site.yml`, `scripts/build-pages-site.sh`, and
 > `scripts/gen-pages-playbook.js`.
 
+## Doc mode (non-ratified documentation)
+
+Skip this section unless your repo is **documentation**, not a specification
+headed for ARC ratification (the worked example is `riscv/docs-dev-guide`).
+Doc mode keeps everything above — the PDF target, the Makefile `%.html`
+target, the Antora site, version identity from semver git tags + build-date
+stamping — and strips only the ratification layer: the Document State
+preface, the phase/milestone attributes, and `SPEC_STATE.md` tracking.
+
+- [ ] Commit a `.docmode` file at your repo root containing exactly `doc`
+      (no trailing content beyond the first line). Absent, empty, or any
+      other value means `spec` — today's behavior, unaffected.
+- [ ] Do Steps 1–2 and 7–13 below as written — they're the shared
+      Antora-ready layer. `scripts/release-info.sh mode` is the single
+      source of truth every one of them reads `.docmode` through; you never
+      parse the file yourself.
+- [ ] In Step 1, ignore the phase-ID/milestone changes — `release-info.sh`'s
+      `phase`/`display`/`notice`/`revremark`/`milestone`/
+      `phase-floor-version` all resolve to `""` in doc mode automatically.
+- [ ] In Step 3/4's `build-pdf.yml`/`version-bot.yml`, the `target_phase`
+      enum and milestone gating stay as-is (they're pure version arithmetic,
+      not ratification), but a doc-mode `version-bot.yml`'s `milestone-pr`
+      job (which regenerates `SPEC_STATE.md`) should be gated the same way
+      upstream's is: add `&& needs.tag-version.outputs.mode == 'spec'` to its
+      `if:` (and add a `mode` output to `tag-version`, from
+      `release-info.sh mode`).
+- [ ] Skip Step 5's Document State preface and phase-attribute defaults
+      entirely — a doc-mode top-level `.adoc` needs neither; the upstream
+      file already guards them behind `ifndef::doc-mode[]`.
+- [ ] Skip `SPEC_STATE.md` and `scripts/update-spec-state.sh` altogether —
+      there's no milestone state to track.
+- [ ] In Step 12's `antora.yml`, keep only `version`, `page-revnumber`,
+      `page-revdate`, and add `doc-mode: 'true'` — drop `page-phase`,
+      `page-phase-display`, `page-phase-notice`. `stamp-antora-version.sh`
+      requires exactly those three keys (not six) in doc mode.
+- [ ] Verify the same way as Step 6, minus the phase assertions: the PDF
+      still has the ARC filename shape (`<short>-v<ver>-<date>.pdf`) and a
+      title page, but no "Document State" preface page and no phase label
+      on the revision line; `modules/ROOT/pages/index.adoc` renders with no
+      phase banner.
+
 ---
 
 # Part A — ARC PDF compliance

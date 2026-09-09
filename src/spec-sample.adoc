@@ -3,11 +3,17 @@ Authors: Author 1, Author 2
 include::../docs-resources/global-config.adoc[]
 ifndef::revnumber[:revnumber: v0.0]
 ifndef::revdate[:revdate: 1/2023]
+// Ratification-layer attribute defaults, and the fallbacks below only apply
+// when the Makefile doesn't pass -a overrides (e.g. a manual asciidoctor
+// invocation). Skipped in doc mode (-a doc-mode is set): a non-ratified doc
+// has no phase/milestone/revremark to fall back to. See scripts/release-info.sh.
+ifndef::doc-mode[]
 ifndef::phase[:phase: draft-and-development]
 ifndef::phase_display[:phase_display: {phase}]
 ifndef::phase_notice[:phase_notice: Assume everything is subject to change. At this stage, ideas, structures, and content are still evolving. Feedback and iteration are encouraged as nothing is final, and adjustments may be frequent.]
 ifndef::revremark[:revremark: This document is under development. Expect potential changes. Visit http://riscv.org/spec-state for further details.]
 ifndef::milestone_id[:milestone_id: {phase}]
+endif::doc-mode[]
 ifndef::spec_short[:spec_short: spec-sample]
 :docgroup: RISC-V Task Group
 :description: RISC-V Example Specification Document (Zexmpl)
@@ -46,9 +52,13 @@ endif::[]
 
 // "Document State" preface is the phase Note rendered as page 2 of the PDF
 // (TOC is placed after it via the toc::[] macro below). See ARC_SUBMISSION.md §3.3.
+// Doc mode (non-ratified documentation, e.g. docs-dev-guide) has no phase to
+// report, so the whole preface is dropped straight through to the TOC.
+ifndef::doc-mode[]
 [preface]
 == Document State
 *Note:* {phase_notice}
+endif::doc-mode[]
 
 toc::[]
 

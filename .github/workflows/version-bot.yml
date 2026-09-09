@@ -45,6 +45,7 @@ jobs:
       previous_phase: ${{ steps.version.outputs.previous_phase }}
       next_phase: ${{ steps.version.outputs.next_phase }}
       milestone_transition: ${{ steps.version.outputs.milestone_transition }}
+      mode: ${{ steps.version.outputs.mode }}
 
     steps:
       - name: Checkout repository
@@ -180,6 +181,7 @@ jobs:
           echo "previous_phase=$prev_phase" >> "$GITHUB_OUTPUT"
           echo "next_phase=$next_phase" >> "$GITHUB_OUTPUT"
           echo "milestone_transition=$milestone_transition" >> "$GITHUB_OUTPUT"
+          echo "mode=$(./scripts/release-info.sh mode)" >> "$GITHUB_OUTPUT"
 
   # Build and release the PDF for the tag just cut, then publish the Antora site
   # for it. These run as workflow_call rather than waiting on the tag push, which
@@ -219,7 +221,10 @@ jobs:
   milestone-pr:
     runs-on: ubuntu-latest
     needs: tag-version
-    if: needs.tag-version.outputs.milestone_transition == 'true'
+    # SPEC_STATE.md is a ratification-layer artifact (milestone/phase labels),
+    # meaningless for a doc-mode repo, which has no milestones. See
+    # scripts/release-info.sh's .docmode / "mode" output above.
+    if: needs.tag-version.outputs.milestone_transition == 'true' && needs.tag-version.outputs.mode == 'spec'
 
     steps:
       - name: Checkout repository

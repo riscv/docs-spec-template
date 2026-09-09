@@ -19,6 +19,13 @@ DEFAULT_VERSION="v0.0"
 DEFAULT_PHASE="draft-and-development"
 SPEC_STATE_URL="http://riscv.org/spec-state"
 
+# Repo root, for resolving the committed .docmode switch (see docmode() below) --
+# same BASH_SOURCE-relative pattern scripts/stamp-antora-version.sh uses for
+# antora.yml, so this works whether invoked as ./scripts/release-info.sh or via
+# an absolute/relative path from elsewhere.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$here/.." && pwd)"
+
 # `next` exits with this code when the auto-increment band is exhausted (the next
 # 0.01 step would land on a manual milestone gate). Callers trap it to skip
 # tagging rather than hard-fail.
@@ -36,14 +43,38 @@ Commands:
   compare <a> <b>         Print -1 / 0 / 1 for a<b / a==b / a>b (decimal order).
   max <a> <b>             Print the greater of two versions.
   is-milestone <v>        Exit 0 if v is a manual milestone gate.
-  phase [v]               Lifecycle phase (state) for a version.
-  phase-floor-version <p> Version at the gate of phase p.
-  display [v]             Title-case display label for a version's phase.
-  milestone [v]           "<gate> <phase>" milestone label.
-  notice [v]              Change-control notice text for a version's phase.
-  revremark [v]           Revision remark (display label) for a version.
+  mode                    Resolved .docmode: "spec" (default) or "doc".
+  phase [v]               Lifecycle phase (state) for a version. Empty in doc mode.
+  phase-floor-version <p> Version at the gate of phase p. Empty in doc mode.
+  display [v]             Title-case display label for a version's phase. Empty in doc mode.
+  milestone [v]           "<gate> <phase>" milestone label. Empty in doc mode.
+  notice [v]              Change-control notice text for a version's phase. Empty in doc mode.
+  revremark [v]           Revision remark (display label) for a version. Empty in doc mode.
   all                     Emit all of the above as KEY=VALUE lines.
 USAGE
+}
+
+# .docmode selects the repo's ratification posture: "spec" (default -- today's
+# behavior, byte-for-byte) keeps the full phase/milestone surface below; "doc"
+# is for non-ratified documentation repos (e.g. docs-dev-guide) and neutralizes
+# it -- see phase/display/milestone/notice/revremark/phase-floor-version below.
+# Version resolution (get_version and everything derived from it) is UNCHANGED
+# by mode: identity still comes from semver git tags + build-date stamping.
+docmode() {
+  local f="$repo_root/.docmode" v
+  if [[ -f "$f" ]]; then
+    v="$(head -n1 "$f" | tr -d '[:space:]')"
+  else
+    v=""
+  fi
+  case "$v" in
+    ""|spec) echo "spec" ;;
+    doc)     echo "doc" ;;
+    *)
+      echo "release-info: unrecognized .docmode value '$v'; defaulting to spec" >&2
+      echo "spec"
+      ;;
+  esac
 }
 
 normalize_prefix() {
@@ -350,12 +381,27 @@ phase_from_input() {
 command="${1:-all}"
 value="${2:-}"
 
+# Neutralize the phase surface in doc mode: these commands short-circuit to an
+# empty value before touching any version/phase machinery, so every consumer
+# (Makefile, stamp-antora-version.sh) sees "" rather than a spec-mode label.
+case "$command" in
+  phase|phase-floor-version|display|milestone|notice|revremark)
+    if [[ "$(docmode)" == "doc" ]]; then
+      echo ""
+      exit 0
+    fi
+    ;;
+esac
+
 case "$command" in
   version)
     get_version
     ;;
   latest)
     latest_tag
+    ;;
+  mode)
+    docmode
     ;;
   normalize)
     if [[ -z "$value" ]]; then
@@ -437,14 +483,19 @@ case "$command" in
     revremark_for_phase "$phase"
     ;;
   all|"")
+    mode="$(docmode)"
     version="$(get_version)"
-    phase="$(phase_for_version "$version")"
-    display="$(phase_display_for_phase "$phase")"
-    milestone="$(milestone_for_phase "$phase")"
-    notice="$(notice_for_phase "$phase")"
-    revremark="$(revremark_for_phase "$phase")"
-    printf 'VERSION=%s\nPHASE=%s\nPHASE_DISPLAY=%s\nMILESTONE=%s\nPHASE_NOTICE=%s\nREVMARK=%s\n' \
-      "$version" "$phase" "$display" "$milestone" "$notice" "$revremark"
+    if [[ "$mode" == "doc" ]]; then
+      phase="" display="" milestone="" notice="" revremark=""
+    else
+      phase="$(phase_for_version "$version")"
+      display="$(phase_display_for_phase "$phase")"
+      milestone="$(milestone_for_phase "$phase")"
+      notice="$(notice_for_phase "$phase")"
+      revremark="$(revremark_for_phase "$phase")"
+    fi
+    printf 'MODE=%s\nVERSION=%s\nPHASE=%s\nPHASE_DISPLAY=%s\nMILESTONE=%s\nPHASE_NOTICE=%s\nREVMARK=%s\n' \
+      "$mode" "$version" "$phase" "$display" "$milestone" "$notice" "$revremark"
     ;;
   -h|--help|help)
     usage

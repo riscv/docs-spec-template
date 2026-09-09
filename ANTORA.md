@@ -50,6 +50,41 @@ Makefile                         # asciidoctor-pdf/html via Docker; ARC PDF nami
 docs-resources/                  # submodule: PDF fonts/themes/logo + global-config
 ```
 
+## Modes: spec vs. doc
+
+Everything above (the PDF, the site, the dual-source technique) is common to
+every repo built from this template. What's *not* common is ratification:
+this template also assumes, by default, that every consumer is a
+specification headed for ARC ratification, and bundles that assumption in as
+a "ratification layer" — the Document State preface, the phase/milestone
+attributes, `SPEC_STATE.md` tracking.
+
+A repo that is documentation rather than a spec (e.g. `riscv/docs-dev-guide`)
+needs the Antora-ready layer above but not the ratification layer. It opts
+out by committing a `.docmode` file at the repo root containing `doc` (absent,
+empty, or any other value ⇒ `spec`, today's behavior, byte-for-byte). Version
+identity — semver git tags + build-date stamping — is identical in both modes;
+only the phase/milestone surface changes:
+
+- `scripts/release-info.sh mode` resolves `.docmode` and is the single source
+  of truth every other consumer reads it from (never re-parse the file
+  yourself). In `doc` mode, `phase`, `phase-floor-version`, `display`,
+  `milestone`, `notice`, and `revremark` all resolve to `""` — `version` and
+  the rest of the version-arithmetic commands are unaffected.
+- The Makefile passes `-a doc-mode='doc'` (instead of the phase/milestone `-a`
+  flags) when in doc mode, which `src/spec-sample.adoc` and
+  `modules/ROOT/pages/index.adoc` key their `ifdef::doc-mode[]` /
+  `ifndef::doc-mode[]` guards on to drop the Document State preface, the
+  title-page revremark, and the cover-page phase banner entirely.
+- `scripts/stamp-antora-version.sh` requires only `version`/`revnumber`/
+  `revdate` in `antora.yml` in doc mode (not `display`/`notice`/`phase`) — see
+  "Version stamping" below.
+- `.github/workflows/version-bot.yml`'s `milestone-pr` job (which regenerates
+  `SPEC_STATE.md`) only runs in spec mode.
+
+See `MIGRATION.md`'s "Doc mode" section for how to adopt this in a derived
+repo.
+
 ## Production model (important)
 
 The canonical site is built **elsewhere**, by the central playbook at
@@ -187,6 +222,12 @@ The version stamp is applied to the **working tree** at build time from
 version matches the PDF even though the tagged commit's committed `antora.yml`
 has not been stamped yet. Nothing is committed back; getting the stamp onto
 `main` stays `build-pdf.yml`'s job, which opens a review PR for it.
+
+`scripts/stamp-antora-version.sh` asserts each key it stamps was found in
+`antora.yml` exactly once — see "Modes" above. In spec mode that's all six of
+`version`/`page-revnumber`/`page-revdate`/`page-phase-display`/
+`page-phase-notice`/`page-phase`; in doc mode, whose `antora.yml` carries no
+`page-phase*` keys, it's only the first three.
 
 The build also scans release tags and publishes any that carry a correctly
 stamped descriptor, which is what would give the site a multi-version dropdown. A
