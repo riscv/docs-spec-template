@@ -144,5 +144,43 @@ rm -rf "$devrepo"
 rc "normalize rejects v0.6.0"  2  "$RI" normalize v0.6.0
 rc "normalize rejects v0.99.1" 2  "$RI" normalize v0.99.1
 
+# --- .docmode (issue #110) ----------------------------------------------------
+# .docmode is resolved relative to release-info.sh's OWN location (repo_root =
+# $here/..), not the caller's cwd, so exercising it needs a scratch repo that
+# carries its own copy of the script under scripts/ -- same as $RI itself.
+modrepo="$(mktemp -d)"
+mkdir -p "$modrepo/scripts"
+cp "$RI" "$modrepo/scripts/release-info.sh"
+(
+  cd "$modrepo" || exit 1
+  git init -q .
+  git -c user.email=t@example.com -c user.name=t commit -q --allow-empty -m init
+  git tag v0.8
+) >/dev/null 2>&1
+mod_ri() { (cd "$modrepo" && env -u VERSION -u RELEASE_VERSION -u GITHUB_REF_NAME -u GITHUB_REF ./scripts/release-info.sh "$@"); }
+
+ok "mode defaults to spec (no .docmode)"  spec  "$(mod_ri mode)"
+ok "phase unaffected in spec mode"  stabilized  "$(mod_ri phase v0.8)"
+
+echo doc > "$modrepo/.docmode"
+ok "mode is doc when .docmode contains doc"  doc  "$(mod_ri mode)"
+ok "phase is empty in doc mode"        ""  "$(mod_ri phase v0.8)"
+ok "phase-floor-version is empty in doc mode"  ""  "$(mod_ri phase-floor-version stabilized)"
+ok "display is empty in doc mode"      ""  "$(mod_ri display v0.8)"
+ok "milestone is empty in doc mode"    ""  "$(mod_ri milestone v0.8)"
+ok "notice is empty in doc mode"       ""  "$(mod_ri notice v0.8)"
+ok "revremark is empty in doc mode"    ""  "$(mod_ri revremark v0.8)"
+ok "version is unaffected in doc mode"       v0.8  "$(mod_ri version)"
+ok "compare is unaffected in doc mode"          1  "$(mod_ri compare v0.8 v0.6)"
+ok "is-milestone is unaffected in doc mode"     0  "$(mod_ri is-milestone v0.8; echo $?)"
+ok "all reports MODE=doc and blank phase fields" \
+  "$(printf 'MODE=doc\nVERSION=v0.8\nPHASE=\nPHASE_DISPLAY=\nMILESTONE=\nPHASE_NOTICE=\nREVMARK=')" \
+  "$(mod_ri all)"
+
+echo bogus > "$modrepo/.docmode"
+ok "unrecognized .docmode value falls back to spec"  spec  "$(mod_ri mode 2>/dev/null)"
+
+rm -rf "$modrepo"
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]

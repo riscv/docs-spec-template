@@ -27,6 +27,12 @@ date="${2:-$(date +%Y-%m-%d)}"
 # Normalise and validate the version (vX.Y) through the shared helper.
 version="$("$here/release-info.sh" normalize "$version")"
 
+# .docmode ("spec" default | "doc") -- see scripts/release-info.sh. In doc mode
+# phase/display/notice all resolve to "" (the phase surface is neutralized), so
+# the page-phase* keys below are dropped from the required set rather than
+# stamped with empty values.
+mode="$("$here/release-info.sh" mode)"
+
 phase="$("$here/release-info.sh" phase "$version")"
 phase_display="$("$here/release-info.sh" display "$version")"
 phase_notice="$("$here/release-info.sh" notice "$version")"
@@ -55,8 +61,15 @@ tmp="$(mktemp)"
 # Each key must be found EXACTLY once; otherwise we would exit 0 having stamped
 # nothing (or having stamped twice), and the release workflow's `git diff` check
 # would read that as "already up to date". Fail loudly instead -- see END.
-awk '
-  BEGIN { cont = -1; split("version revnumber revdate display notice phase", req, " ") }
+awk -v mode="$mode" '
+  BEGIN {
+    cont = -1
+    if (mode == "doc") {
+      nreq = split("version revnumber revdate", req, " ")
+    } else {
+      nreq = split("version revnumber revdate display notice phase", req, " ")
+    }
+  }
 
   cont >= 0 {
     if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) {
@@ -78,7 +91,7 @@ awk '
 
   END {
     bad = ""
-    for (i = 1; i <= 6; i++)
+    for (i = 1; i <= nreq; i++)
       if (seen[req[i]] != 1)
         bad = bad sprintf("  %-12s found %d time(s), expected 1\n", req[i], seen[req[i]] + 0)
     if (bad != "") {
@@ -100,4 +113,8 @@ else
   echo "stamp-antora-version: WARNING: python3 + PyYAML unavailable; skipped YAML validation" >&2
 fi
 
-echo "Stamped antora.yml: version=$version phase=$phase ($phase_display) date=$date"
+if [[ "$mode" == "doc" ]]; then
+  echo "Stamped antora.yml: version=$version date=$date (doc mode: phase surface not stamped)"
+else
+  echo "Stamped antora.yml: version=$version phase=$phase ($phase_display) date=$date"
+fi

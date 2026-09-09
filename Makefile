@@ -23,11 +23,34 @@ DATE ?= $(shell date +%Y-%m-%d)
 DATE_STAMP := $(subst -,,$(DATE))
 VERSION ?= $(shell ./scripts/release-info.sh version)
 VERSION_NUM := $(patsubst v%,%,$(VERSION))
+
+# .docmode ("spec" default | "doc") -- see scripts/release-info.sh. "doc" is
+# for non-ratified documentation repos (e.g. docs-dev-guide): it keeps the PDF
+# and HTML targets but strips the ratification/phase surface below.
+DOC_MODE ?= $(shell ./scripts/release-info.sh mode)
+
 PHASE ?= $(shell ./scripts/release-info.sh phase "$(VERSION)")
 PHASE_DISPLAY ?= $(shell ./scripts/release-info.sh display "$(VERSION)")
 PHASE_NOTICE ?= $(shell ./scripts/release-info.sh notice "$(VERSION)")
 REVMARK ?= $(shell ./scripts/release-info.sh revremark "$(VERSION)")
 MILESTONE_ID ?= $(PHASE)
+
+# In spec mode, pass the phase/milestone attributes through to asciidoctor so
+# spec-sample.adoc's Document State preface and the title-page revremark
+# render. In doc mode those are empty (see release-info.sh's neutralization),
+# so instead pass a single doc-mode marker attribute: spec-sample.adoc and
+# index.adoc key their ifdef::doc-mode[]/ifndef::doc-mode[] guards off its
+# PRESENCE, not a blank value, which is what lets them drop those sections
+# entirely rather than rendering them empty.
+ifeq ($(DOC_MODE),doc)
+	PHASE_OPTS := -a doc-mode='doc'
+else
+	PHASE_OPTS := -a phase='${PHASE}' \
+	              -a phase_display='${PHASE_DISPLAY}' \
+	              -a phase_notice='${PHASE_NOTICE}' \
+	              -a milestone_id='${MILESTONE_ID}' \
+	              -a revremark='${REVMARK}'
+endif
 DOCKER_IMG := riscvintl/riscv-docs-base-container-image:latest
 DOCKER_BIN ?= docker
 ifneq ($(SKIP_DOCKER),true)
@@ -59,12 +82,8 @@ OPTIONS := --trace \
            -a compress \
            -a mathematical-format=svg \
            -a revnumber=${VERSION} \
-           -a revremark='${REVMARK}' \
            -a revdate=${DATE} \
-           -a phase='${PHASE}' \
-           -a phase_display='${PHASE_DISPLAY}' \
-           -a phase_notice='${PHASE_NOTICE}' \
-           -a milestone_id='${MILESTONE_ID}' \
+           $(PHASE_OPTS) \
            -a spec_short='${SPEC_SHORT}' \
            -a pdf-fontsdir=docs-resources/fonts \
            -a pdf-theme=docs-resources/themes/riscv-pdf.yml \
@@ -129,7 +148,9 @@ vpath %.adoc $(SRC_DIR)
 %.pdf: %.adoc
 	$(DOCKER_CMD) $(DOCKER_QUOTE) $(ASCIIDOCTOR_PDF) $(OPTIONS) $(REQUIRES) -o $(call ARC_PDF,$*) $< $(DOCKER_QUOTE)
 	@test -f build/$(call ARC_PDF,$*) || { echo "ERROR: build/$(call ARC_PDF,$*) was not produced" >&2; exit 1; }
-	@if [ -n "$(ARC_EXACT)" ]; then \
+	@if [ "$(DOC_MODE)" = "doc" ]; then \
+		echo "PDF: build/$(call ARC_PDF,$*)"; \
+	elif [ -n "$(ARC_EXACT)" ]; then \
 		echo "ARC submission PDF: build/$(call ARC_PDF,$*)"; \
 	else \
 		echo "Development PDF: build/$(call ARC_PDF,$*)"; \

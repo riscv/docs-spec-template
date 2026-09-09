@@ -23,12 +23,24 @@ image::{cover-logo}[id="riscvlogo",role="xs",alt="RISCV"]
 // Values come from antora.yml attributes stamped by scripts/stamp-antora-version.sh
 // from the same release-info.sh source the PDF uses, so this stays in lockstep
 // with the PDF title page. Do not hardcode a version here.
+//
+// Doc mode (non-ratified documentation, e.g. docs-dev-guide) has no phase to
+// report: antora.yml sets doc-mode instead of the page-phase* attributes, and
+// the trailing ": <Display>" is dropped.
+ifndef::doc-mode[]
 Version {page-revnumber}, {page-revdate}: {page-phase-display}
+endif::doc-mode[]
+ifdef::doc-mode[]
+Version {page-revnumber}, {page-revdate}
+endif::doc-mode[]
 
 // Phase/status banner mirrors the PDF's "Document State" preface: the label and
-// notice both track the current ARC phase via stamped attributes.
+// notice both track the current ARC phase via stamped attributes. Skipped in
+// doc mode, which has no phase.
+ifndef::doc-mode[]
 [NOTE]
 .This document is in the link:http://riscv.org/spec-state[{page-phase-display} state]
 ====
 {page-phase-notice}
 ====
+endif::doc-mode[]
