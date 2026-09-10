@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upgrade procedure silently wiped its own Vale config. `.vale.ini` is now a
   **shared** file: `StylesPath`/`Packages` are template-owned, `BasedOnStyles`,
   `Vocab` and rule disables are yours.
+- Fix `tests/release-info-test.sh` reporting 23 failures in a doc-mode repository.
+  The phase assertions ran against the repo root, so they inherited its mode and
+  compared spec-mode expectations against doc mode's (correct) empty strings. The
+  suite now drives a copy of the script from a scratch repo with no `.docmode`,
+  so it passes 78/78 in either mode.
 - Keep the Antora site that the PR gate already builds, as a *Rendered site
   (Antora)* artifact, so reviewers can see a content change rendered
   (`validate-content-source.yml`). The cover logo is now staged from
