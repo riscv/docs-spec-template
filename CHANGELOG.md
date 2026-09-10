@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Ship a working `.vale.ini`. It was committed as a 0-byte file, so Vale ran on
+  every pull request and linted nothing — and because `UPGRADING.md` listed it as
+  template-owned ("overwrite without reading the diff"), a repo following the
+  upgrade procedure silently wiped its own Vale config. `.vale.ini` is now a
+  **shared** file: `StylesPath`/`Packages` are template-owned, `BasedOnStyles`,
+  `Vocab` and rule disables are yours.
+- Fix `tests/release-info-test.sh` reporting 23 failures in a doc-mode repository.
+  The phase assertions ran against the repo root, so they inherited its mode and
+  compared spec-mode expectations against doc mode's (correct) empty strings. The
+  suite now drives a copy of the script from a scratch repo with no `.docmode`,
+  so it passes 78/78 in either mode.
+- Correct `MIGRATION.md`'s doc-mode checklist, which told the reader to hand-edit
+  `version-bot.yml` to add a `mode` output and gate `milestone-pr` on it. Both
+  landed on `main` in #150; the instruction invited re-applying an edit that is
+  already there.
 - Fix the header logo and the "RISC-V Specifications" breadcrumb 404ing on every
   page of a standalone GitHub Pages site: `scripts/build-pages-site.sh` now emits
   a `home/index.html` redirect to the site root. The shared RISC-V UI links to
