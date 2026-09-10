@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Ship a working `.vale.ini`. It was committed as a 0-byte file, so Vale ran on
+  every pull request and linted nothing — and because `UPGRADING.md` listed it as
+  template-owned ("overwrite without reading the diff"), a repo following the
+  upgrade procedure silently wiped its own Vale config. `.vale.ini` is now a
+  **shared** file: `StylesPath`/`Packages` are template-owned, `BasedOnStyles`,
+  `Vocab` and rule disables are yours.
 - Keep the Antora site that the PR gate already builds, as a *Rendered site
   (Antora)* artifact, so reviewers can see a content change rendered
   (`validate-content-source.yml`). The cover logo is now staged from
