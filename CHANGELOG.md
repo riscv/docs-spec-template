@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `version-bot.yml` to add a `mode` output and gate `milestone-pr` on it. Both
   landed on `main` in #150; the instruction invited re-applying an edit that is
   already there.
+- Fix the header logo and the "RISC-V Specifications" breadcrumb 404ing on every
+  page of a standalone GitHub Pages site: `scripts/build-pages-site.sh` now emits
+  a `home/index.html` redirect to the site root. The shared RISC-V UI links to
+  that path from every page, and two of its three references hardcode it, so a
+  single-repo build cannot retarget them from a playbook.
 - Keep the Antora site that the PR gate already builds, as a *Rendered site
   (Antora)* artifact, so reviewers can see a content change rendered
   (`validate-content-source.yml`). The cover logo is now staged from
