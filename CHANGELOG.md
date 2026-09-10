@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compared spec-mode expectations against doc mode's (correct) empty strings. The
   suite now drives a copy of the script from a scratch repo with no `.docmode`,
   so it passes 78/78 in either mode.
+- Correct `MIGRATION.md`'s doc-mode checklist, which told the reader to hand-edit
+  `version-bot.yml` to add a `mode` output and gate `milestone-pr` on it. Both
+  landed on `main` in #150; the instruction invited re-applying an edit that is
+  already there.
 - Keep the Antora site that the PR gate already builds, as a *Rendered site
   (Antora)* artifact, so reviewers can see a content change rendered
   (`validate-content-source.yml`). The cover logo is now staged from
