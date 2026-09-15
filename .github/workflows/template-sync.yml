@@ -16,7 +16,7 @@ on:
   schedule:
     # Every Monday. Cadence, not urgency -- see UPGRADING.md section 6 for
     # when an upgrade is actually worth doing.
-    - cron: '0 6 * * 1'
+    - cron: 0 6 * * 1
   workflow_dispatch: {}
 
 permissions:
