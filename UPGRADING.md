@@ -17,17 +17,23 @@ compliance changes — without losing their specification content.
 > does not, you have not adopted the Antora dual build yet. Work through
 > [`MIGRATION.md`](MIGRATION.md) first, then come back here.
 
-**Want this to happen automatically?** Once you have completed section 1 once
-(so `.template-version` exists), `.github/workflows/template-sync.yml` — itself
-a template-owned file, so it is already in your repository if you are on a
-current template version — runs weekly and opens a PR that copies
-template-owned files for you, using the same rules as section 2.4. It cannot do
-the manual merge in sections 2.5–2.6 for you; it lists which shared files need
-that attention in the PR description. You still need a `GHTOKEN` repository
-secret for it to push (see the *Repository Setup Checklist* in
-[`README.adoc`](README.adoc)) — without one, workflow-file updates are the one
-thing `GITHUB_TOKEN` cannot push, and the PR step fails. The rest of this guide
-describes what that workflow automates and what it leaves for you to do by hand.
+**Want this to happen automatically?** `.github/workflows/template-sync.yml` —
+itself a template-owned file, so it is already in your repository if you are on
+a current template version — runs weekly and opens a PR that copies
+template-owned files for you, using the same rules as section 2.4. You do not
+need to do section 1 by hand first: its first run bootstraps `.template-version`
+against `template/main` on its own (what *Use this template* copied from) and
+opens an initial PR adding it, so a repository created from the template opts in
+with no manual step. It cannot do the manual merge in sections 2.5–2.6 for you;
+it lists which shared files need that attention in the PR description. You still
+need a `GHTOKEN` repository secret for it to push (see the *Repository Setup
+Checklist* in [`README.adoc`](README.adoc)) — without one, workflow-file updates
+are the one thing `GITHUB_TOKEN` cannot push, and the PR step fails. The rest of
+this guide describes what that workflow automates, what it leaves for you to do
+by hand, and how to run the same procedure yourself if you would rather not wait
+for the schedule or want more control over the baseline (section 1.2's
+closest-match search finds a more precise baseline than the bootstrap's
+"assume you're on `main`").
 
 The procedure is in sections 1–3. If you want to know *why* it works this way, or
 which files belong to whom, see the [Reference](#reference) at the end.

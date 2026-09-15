@@ -67,33 +67,50 @@ jobs:
           echo "target=$target" >> "$GITHUB_OUTPUT"
           echo "short_target=$(git rev-parse --short template/main)" >> "$GITHUB_OUTPUT"
 
-          if [[ ! -f .template-version ]]; then
-            echo "::warning::No .template-version file -- this repository has not adopted the UPGRADING.md baseline convention yet. Skipping automated sync; see UPGRADING.md section 1 to set one up, or run the procedure by hand once."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          baseline=""
+          if [[ -f .template-version ]]; then
+            baseline="$(awk -F': *' '/^template_sha:/ {print $2}' .template-version)"
+            if [[ -n "$baseline" ]] && ! git cat-file -e "$baseline" 2>/dev/null; then
+              echo "::warning::.template-version's template_sha ($baseline) is not reachable from the template remote. Falling back to template/main as the baseline -- see UPGRADING.md section 1.3 to fix it by hand instead."
+              baseline=""
+            fi
           fi
 
-          baseline="$(awk -F': *' '/^template_sha:/ {print $2}' .template-version)"
+          bootstrap=false
           if [[ -z "$baseline" ]]; then
-            echo "::warning::.template-version has no template_sha line. Skipping automated sync."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if ! git cat-file -e "$baseline" 2>/dev/null; then
-            echo "::warning::.template-version's template_sha ($baseline) is not reachable from the template remote. Skipping automated sync -- fix the baseline by hand per UPGRADING.md section 1.3."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ "$baseline" == "$target" ]]; then
-            echo "Already at template/main ($target). Nothing to sync."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            # No usable record. This is the normal state for a repository
+            # freshly created via "Use this template" -- GitHub copies the
+            # file tree but writes no history-tracking file of its own, so
+            # there is nothing here yet for UPGRADING.md section 1 to have
+            # produced. template/main is the correct baseline for that case:
+            # it is what "Use this template" just copied from. (It is also a
+            # reasonable fallback for an older repository that never adopted
+            # the convention -- the first PR will simply be larger, and is
+            # reviewable like any other.)
+            baseline="$target"
+            bootstrap=true
+            echo "No usable .template-version -- bootstrapping baseline to template/main ($target)."
           fi
 
           echo "baseline=$baseline" >> "$GITHUB_OUTPUT"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "bootstrap=$bootstrap" >> "$GITHUB_OUTPUT"
+
+          if [[ "$bootstrap" == "false" && "$baseline" == "$target" ]]; then
+            echo "Already at template/main ($target). Nothing to sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          {
+            echo 'note<<EOF'
+            if [[ "$bootstrap" == "true" ]]; then
+              echo "**This is the initial opt-in PR** for this repository: no \`.template-version\` was found, so the baseline was bootstrapped to \`docs-spec-template@$(git rev-parse --short "$baseline")\` -- what *Use this template* copied from. It adds \`.template-version\` so future runs only diff against what actually changed."
+            else
+              echo "Compare: https://github.com/riscv/docs-spec-template/compare/$baseline...$target"
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create branch
         if: steps.refs.outputs.skip == 'false'
@@ -188,7 +205,7 @@ jobs:
             `modules/ROOT/`, `src/<your-spec>.adoc`, or the shared files listed
             below was touched.
 
-            Compare: https://github.com/riscv/docs-spec-template/compare/${{ steps.refs.outputs.baseline }}...${{ steps.refs.outputs.target }}
+            ${{ steps.refs.outputs.note }}
 
             **Before merging:**
             ${{ steps.shared.outputs.checklist }}
