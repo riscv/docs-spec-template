@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Add `template-sync.yml`, a weekly (and manually dispatchable) workflow that
+  opens a pull request copying template-owned file updates from
+  `docs-spec-template` into a downstream repository, using the file-ownership
+  rules already documented in `UPGRADING.md`. Requires `.template-version`
+  (UPGRADING.md section 1) and a `GHTOKEN` secret to push workflow-file
+  changes.
 - Ship a working `.vale.ini`. It was committed as a 0-byte file, so Vale ran on
   every pull request and linted nothing — and because `UPGRADING.md` listed it as
   template-owned ("overwrite without reading the diff"), a repo following the
