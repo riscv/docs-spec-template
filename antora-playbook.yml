@@ -84,6 +84,24 @@ asciidoc:
     vertical-ellipsis: ⋮
     ellipsis: …
 
+# Antora extensions for the builds THIS repo runs: the local preview, the
+# pull-request preview (validate-content-source.yml), and the GitHub Pages site
+# (scripts/gen-pages-playbook.js derives its playbook from this one). The central
+# playbook registers its own copies for docs.riscv.org.
+#
+# xref_text_extension fills in the link text for a cross-page reference written
+# without it -- <<chapter.adoc#some-id>> or xref:chapter.adoc#some-id[] -- which
+# Antora otherwise renders as the raw target. The PDF build generates that text
+# itself, so this is what keeps one source rendering properly in both outputs.
+#
+# It comes from the docs-resources submodule, so every spec repo shares one copy.
+# Register it only when the submodule has it: bump docs-resources in the same
+# commit, or Antora fails with "Cannot find module".
+antora:
+  extensions:
+    - require: ./docs-resources/antora-extensions/xref_text_extension.js
+      style: short
+
 ui:
   bundle:
     # RISC-V production UI, so local preview matches https://docs.riscv.org.

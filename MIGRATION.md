@@ -369,6 +369,14 @@ src/<spec-short>.adoc            # PDF assembler (Makefile DOCS target)
       `Version {page-revnumber}, {page-revdate}: {page-phase-display}`, and a
       phase banner linking to riscv.org/spec-state. Never hardcode a version —
       those attributes are stamped in Step 12.
+- [ ] Write links to an anchor in **another** chapter so they name that
+      chapter's page — `<<chapter2.adoc#some-id>>`, not `<<some-id>>`. A bare
+      `<<some-id>>` works in the assembled PDF but is a broken link on the site,
+      where each chapter is its own page. Links within a page stay `<<some-id>>`.
+      The PDF build resolves the page-qualified form through
+      `src/cross-page-xrefs.rb` (in the Makefile's `REQUIRES`) and generates the
+      link text as before; `xref_text_extension` supplies that text on the site
+      (Step 10).
 - [ ] Confirm the boundary holds:
       ```bash
       grep -rn "docs-resources" modules/ && echo "LEAK: docs-resources referenced under modules/"
@@ -411,6 +419,13 @@ extension owns.
       must be `0.18.1` (what the central playbook uses); `1.0.0` requires a newer
       Asciidoctor.js than Antora 3.1.x bundles and dies with
       `block.$!= is not a function`.
+- [ ] `antora-playbook.yml`'s `antora.extensions` — registers
+      `xref_text_extension` from the `docs-resources` submodule, which supplies
+      the link text for cross-page references written without any
+      (`<<chapter.adoc#some-id>>`). Antora renders those as the raw target
+      otherwise, while the PDF build generates the text itself. Bump
+      `docs-resources` in the same commit, or the build fails with `Cannot find
+      module`. The central playbook registers its own copy for docs.riscv.org.
 - [ ] `docker-compose.yml` — a local Kroki on `localhost:9870` (the port must
       match the playbook's `kroki-server-url`), so diagrams render without
       shipping source to a public Kroki instance.

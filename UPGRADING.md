@@ -358,6 +358,11 @@ git checkout $TARGET -- docs-resources
 git submodule update --init --recursive
 ```
 
+Take this step **before** merging `antora-playbook.yml` in 2.5, or at the same
+time. The playbook registers Antora extensions from `docs-resources` (see
+`antora.extensions`), and Antora fails with `Cannot find module` if your
+submodule pointer predates the extension the playbook asks for.
+
 ### 2.8 Record the new baseline
 
 Update `.template-version` with the new ref, SHA, and today's date. If you do not
