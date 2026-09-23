@@ -235,6 +235,11 @@ for what to do about a local edit to a template-owned file.
 
 ### 2.5 Merge the shared files manually
 
+> The Makefile's `REQUIRES` list includes `./scripts/cross-page-xrefs.rb`, which
+> the PDF build needs to resolve links written as `<<chapter.adoc#some-id>>`.
+> Step 2.4 copies `scripts/` wholesale, so the file is already in place when you
+> merge that line.
+
 Shared files carry template structure **and** your customizations on the same
 lines, so you cannot copy them. You have to apply the template's changes to your
 copy while keeping your own values.
@@ -357,6 +362,11 @@ during an upgrade so your build matches what the template tested:
 git checkout $TARGET -- docs-resources
 git submodule update --init --recursive
 ```
+
+Take this step **before** merging `antora-playbook.yml` in 2.5, or at the same
+time. The playbook registers Antora extensions from `docs-resources` (see
+`antora.extensions`), and Antora fails with `Cannot find module` if your
+submodule pointer predates the extension the playbook asks for.
 
 ### 2.8 Record the new baseline
 
