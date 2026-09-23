@@ -94,7 +94,7 @@ REQUIRES := --require=asciidoctor-bibtex \
             --require=asciidoctor-diagram \
 			--require=asciidoctor-lists \
             --require=asciidoctor-mathematical \
-            --require=./src/cross-page-xrefs.rb
+            --require=./scripts/cross-page-xrefs.rb
 
 DOCS_RESOURCES_CONFIG := docs-resources/global-config.adoc
 

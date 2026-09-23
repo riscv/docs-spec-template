@@ -235,6 +235,11 @@ for what to do about a local edit to a template-owned file.
 
 ### 2.5 Merge the shared files manually
 
+> The Makefile's `REQUIRES` list includes `./scripts/cross-page-xrefs.rb`, which
+> the PDF build needs to resolve links written as `<<chapter.adoc#some-id>>`.
+> Step 2.4 copies `scripts/` wholesale, so the file is already in place when you
+> merge that line.
+
 Shared files carry template structure **and** your customizations on the same
 lines, so you cannot copy them. You have to apply the template's changes to your
 copy while keeping your own values.

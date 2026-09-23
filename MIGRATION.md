@@ -374,7 +374,7 @@ src/<spec-short>.adoc            # PDF assembler (Makefile DOCS target)
       `<<some-id>>` works in the assembled PDF but is a broken link on the site,
       where each chapter is its own page. Links within a page stay `<<some-id>>`.
       The PDF build resolves the page-qualified form through
-      `src/cross-page-xrefs.rb` (in the Makefile's `REQUIRES`) and generates the
+      `scripts/cross-page-xrefs.rb` (in the Makefile's `REQUIRES`) and generates the
       link text as before; `xref_text_extension` supplies that text on the site
       (Step 10).
 - [ ] Confirm the boundary holds:
