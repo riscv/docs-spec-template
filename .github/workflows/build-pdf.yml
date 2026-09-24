@@ -322,7 +322,12 @@ jobs:
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
           base: main
-          commit-message: 'chore(site): stamp Antora version ${{ needs.build.outputs.version }} to match PDF'
+          # Signed off as the dispatching user, for the DCO check -- see the
+          # matching note in version-bot.yml's milestone PR step.
+          commit-message: |
+            chore(site): stamp Antora version ${{ needs.build.outputs.version }} to match PDF
+
+            Signed-off-by: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           branch: gitbot/stamp-site-${{ needs.build.outputs.version }}
           delete-branch: true
           title: Stamp Antora site version ${{ needs.build.outputs.version }} to match released PDF
