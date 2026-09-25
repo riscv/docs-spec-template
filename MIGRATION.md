@@ -489,17 +489,18 @@ file.
       `page-revdate`, `page-phase`, `page-phase-display`, `page-phase-notice`)
       from `release-info.sh` — the same source the PDF uses, so the two cannot
       diverge. It is idempotent and preserves comments and nav.
-- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job. On every real
-      release (it skips PR previews and drafts) it stamps `antora.yml` and opens
-      a **review PR** against `main` titled
-      `Stamp Antora site version vX.Y to match released PDF`. It is monotonic —
-      it will not stamp `main` backwards when an older tag is rebuilt (it
-      compares by decimal value via `release-info.sh`, not `sort -V`).
-- [ ] **Merging that PR is part of cutting a release** (Step 14). Until it
-      merges, the site version lags the released PDF. It deliberately opens a PR
-      rather than pushing to `main` directly so it works whatever branch
-      protection your repo has — a rejected push would leave the release green
-      and the site silently stale.
+- [ ] Sync the upstream `version-bot.yml`. It stamps `antora.yml` and commits it
+      to `main` **before** cutting the tag, so the tag carries a descriptor
+      naming its own version. That is what lets the Pages build publish the
+      release under `/<component>/<version>/` and keep it there: a tag stamped
+      afterwards never qualifies (see `scripts/build-pages-site.sh`, step 3), so
+      the next push to `main` rebuilds the site without it.
+- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job too. It is now
+      the **fallback**: if the pre-tag push is refused — branch protection, or
+      `main` moved since checkout — it opens a review PR titled
+      `Stamp Antora site version vX.Y to match released PDF`, which you merge to
+      bring the site version back in line. It is monotonic, and it skips
+      silently when `main` is already stamped, which is the normal case.
 - [ ] Verify:
       ```bash
       make stamp-antora VERSION=v0.8 DATE=2026-06-12
@@ -617,9 +618,12 @@ When you're ready to advance to the next milestone:
       for an intermediate revision tag).
 - [ ] Confirm the resulting release has a single PDF whose name matches the
       ARC convention.
-- [ ] **Review and merge the site version stamp PR** the release opened
-      (`Stamp Antora site version vX.Y to match released PDF`). The site
-      version does not track the PDF until you do. The values are generated from
+- [ ] **If the release opened a site version stamp PR**
+      (`Stamp Antora site version vX.Y to match released PDF`), review and merge
+      it. Normally there is none: the release stamps `antora.yml` on `main`
+      before tagging, and the PR appears only when that push was refused. Until
+      it merges, the site version lags the released PDF, and the release has no
+      versioned path of its own. The values are generated from
       `release-info.sh`, so this wants a merge, not an edit.
 - [ ] After it merges, confirm the site renders at `/<component>/<version>/` with
       a cover reading `Version vX.Y, YYYY-MM-DD: <Display>` — identical to the

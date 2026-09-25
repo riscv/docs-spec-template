@@ -251,6 +251,11 @@ jobs:
   # PR works under any protection setting and matches the milestone-PR idiom in
   # version-bot.yml. Cost: a maintainer must merge it for the site to catch up,
   # so treat that merge as part of cutting a release (see MIGRATION.md Step 14).
+  # FALLBACK path. version-bot.yml stamps antora.yml and commits it to main
+  # before it cuts the tag, so the descriptor is normally already correct and the
+  # guard below skips this job. It still exists for the case that push was
+  # refused (branch protection, or main moved since checkout), where opening a
+  # review PR is the only way to get the stamp onto main.
   stamp-site-version:
     needs: build
     runs-on: ubuntu-latest
