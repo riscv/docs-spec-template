@@ -46,6 +46,8 @@ When instantiating a new repository from this template, perform these one-time s
    The workflow asks for this automatically (`enablement: true`), but the built-in `GITHUB_TOKEN` cannot create a Pages site — it is refused with `Resource not accessible by integration`. That is a limitation of the Actions token itself, *not* an organization policy: there is no org-level setting to change, and a repository admin must do it once by hand. After that, every release publishes without further intervention.
    Set the source **directly** to *GitHub Actions*. If it is set to *Deploy from a branch* first, GitHub queues a run of its own built-in `pages-build-deployment` workflow, and that run can finish *after* your first Actions deployment and overwrite the site with the repository root — a live 404 from a workflow that reported success. Recover by re-running `publish-site.yml` once the stray build has finished; it does not recur.
    Pages needs a public repository unless your organization is on Team/Enterprise; the job skips itself on private repos rather than failing the release.
+4. **Enable template updates**:
+   `.github/workflows/template-sync.yml` runs weekly (and on manual dispatch) and opens a pull request that pulls in template-owned file changes from `docs-spec-template` — see link:UPGRADING.md[UPGRADING.md]. It opts in automatically: its first run bootstraps `.template-version` for you and opens an initial PR, no manual setup required. It needs a `GHTOKEN` repository secret specifically: the workflow updates files under `.github/workflows/`, and `GITHUB_TOKEN` cannot push those regardless of the *Allow GitHub Actions to create and approve pull requests* setting in step 1.
 
 == Building the Document
 
