@@ -219,9 +219,11 @@ from.
 
 The version stamp is applied to the **working tree** at build time from
 `scripts/release-info.sh` — the same source the PDF uses — so the published
-version matches the PDF even though the tagged commit's committed `antora.yml`
-has not been stamped yet. Nothing is committed back; getting the stamp onto
-`main` stays `build-pdf.yml`'s job, which opens a review PR for it.
+version matches the PDF even when the checked-out ref's committed `antora.yml`
+is not stamped. Nothing is committed back by the build itself: `version-bot.yml`
+stamps and commits `antora.yml` to `main` before it cuts the tag, and
+`build-pdf.yml` opens a review PR only as a fallback, when that push is
+refused.
 
 `scripts/stamp-antora-version.sh` asserts each key it stamps was found in
 `antora.yml` exactly once — see "Modes" above. In spec mode that's all six of
@@ -239,12 +241,15 @@ itself. That is deliberately strict, for two reasons:
 2. A tag stamped with a different version would publish under a wrong or
    duplicate version path.
 
-**Today no tag qualifies**, so the site publishes exactly one version. The reason
-is ordering: a release tag is pushed *first*, and `build-pdf.yml` stamps
-`antora.yml` on `main` *afterwards* — so a tag never contains its own version.
-If the release flow is ever changed to stamp and commit **before** cutting the
-tag, past releases begin appearing in the version dropdown automatically, with no
-change to this script.
+Release tags qualify because `version-bot.yml` stamps and commits `antora.yml`
+**before** it creates the tag, so the tag contains its own version. Releases
+therefore accumulate in the version dropdown.
+
+Tags cut before that ordering existed do not qualify, and are skipped with a
+reason rather than failing the build. The same applies if the pre-tag push is
+refused (branch protection, or `main` moved): that release is published from the
+worktree stamp at release time, but a later push to `main` rebuilds the site
+without it, so its versioned path disappears until the release is re-cut.
 
 ## Section numbering
 
