@@ -244,7 +244,14 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-          commit-message: 'docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}'
+          # The DCO check that RISC-V spec repos run requires a Signed-off-by
+          # matching the commit's author. create-pull-request authors the commit
+          # as the user who dispatched this workflow and adds no trailer, so the
+          # PR is blocked until someone amends it. Sign off as that same user.
+          commit-message: |
+            docs: milestone transition to ${{ needs.tag-version.outputs.next_phase }}
+
+            Signed-off-by: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           branch: gitbot/milestone-${{ needs.tag-version.outputs.next_version }}
           delete-branch: true
           title: 'Milestone reached: ${{ needs.tag-version.outputs.next_phase }} (${{ needs.tag-version.outputs.next_version }})'
