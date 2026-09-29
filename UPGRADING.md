@@ -609,6 +609,7 @@ scripts/stamp-antora-version.sh
 scripts/update-spec-state.sh
 scripts/build-pages-site.sh
 scripts/gen-pages-playbook.js
+scripts/cross-page-xrefs.rb
 tests/release-info-test.sh
 .github/workflows/build-pdf.yml
 .github/workflows/version-bot.yml
