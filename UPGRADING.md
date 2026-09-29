@@ -626,7 +626,6 @@ ARC_SUBMISSION.md
 UPGRADING.md
 LICENSE
 CODE_OF_CONDUCT.md
-GOVERNANCE.md
 ```
 
 `scripts/build-pages-site.sh` mentions `spec-sample`, but only in comments. It
@@ -634,8 +633,11 @@ reads `version:` from `antora.yml` at runtime, and the component name reaches it
 via `start_page` in `antora-playbook.yml`, so the script itself carries nothing
 per-repository.
 
-`CONTRIBUTING.md` and `GOVERNANCE.md` are template-owned *unless* your task group
-has amended them. If so, treat them as shared files.
+`CONTRIBUTING.md` and `GOVERNANCE.md` are not on this list. The template's
+`GOVERNANCE.md` is a placeholder that every task group is expected to rewrite, and
+task groups often amend `CONTRIBUTING.md`, so both are shared files (below).
+`template-sync.yml` never overwrites them; it only reports when the template's copy
+changed.
 
 `UPGRADING.md` is listed here, but note that your repository will not have a copy
 until the template ships this guide in a release. Add it to the `git checkout`
@@ -658,6 +660,8 @@ keeping your own values from this table.
 | `.gitignore` | Usually identical; the template adds entries as new generated artifacts appear |
 | `.gitmodules` | Usually identical — check rather than assume |
 | `.vale.ini` | `BasedOnStyles`, `Vocab`, and any rule you have switched off; `StylesPath` and `Packages` are template-owned |
+| `CONTRIBUTING.md` | Any task-group-specific contribution process; take the template's changes to the shared DCO and workflow text |
+| `GOVERNANCE.md` | The governing group, how to join it, and its mailing list — normally all of it |
 | `src/<your-spec>.adoc` | Your `include::` lines only; see below |
 
 #### The one file that is both
