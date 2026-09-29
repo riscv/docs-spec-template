@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Stop `template-sync.yml` from overwriting `GOVERNANCE.md`. The template's copy
+  is a placeholder every task group rewrites, and `UPGRADING.md` already said to
+  treat an amended copy as a shared file, but the workflow copied it
+  unconditionally, so each sync PR replaced a repository's governing group and
+  mailing list with the Documentation SIG's. `GOVERNANCE.md` and
+  `CONTRIBUTING.md` are now shared files: the sync PR lists them for a manual
+  merge when the template's copy changes, and never overwrites them.
+- Add `scripts/cross-page-xrefs.rb` to the files `template-sync.yml` copies and
+  to `UPGRADING.md`'s template-owned list. The Makefile requires it for the PDF
+  build, but it was missing from both, so downstream repositories never received
+  updates to it through template sync.
 - Add `template-sync.yml`, a weekly (and manually dispatchable) workflow that
   opens a pull request copying template-owned file updates from
   `docs-spec-template` into a downstream repository, using the file-ownership
