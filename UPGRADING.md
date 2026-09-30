@@ -233,7 +233,7 @@ history required:
 git checkout $TARGET -- \
   scripts/ tests/ \
   .github/workflows/ .github/dependabot.yml \
-  .pre-commit-config.yaml docker-compose.yml \
+  docker-compose.yml \
   ANTORA.md MIGRATION.md ARC_SUBMISSION.md
 ```
 
@@ -619,7 +619,6 @@ tests/release-info-test.sh
 .github/workflows/vale-linting.yml
 .github/workflows/template-sync.yml
 .github/dependabot.yml
-.pre-commit-config.yaml
 docker-compose.yml
 ANTORA.md
 MIGRATION.md
@@ -633,6 +632,14 @@ CODE_OF_CONDUCT.md
 reads `version:` from `antora.yml` at runtime, and the component name reaches it
 via `start_page` in `antora-playbook.yml`, so the script itself carries nothing
 per-repository.
+
+`.pre-commit-config.yaml` is not on this list either, though it was until
+template-sync started overwriting spec repositories that had added their own
+hooks. A spec repository is *expected* to add `repo: local` hooks for its own
+invariants — `riscv-high-assurance-cryptography` gates cross-chapter link syntax
+that way — so the file carries template structure and your hooks on the same
+lines, which is the definition of a shared file (below). Take the template's
+hooks and `rev` bumps; keep your own `repo: local` block.
 
 `CONTRIBUTING.md` and `GOVERNANCE.md` are not on this list. The template's
 `GOVERNANCE.md` is a placeholder that every task group is expected to rewrite, and
@@ -661,6 +668,7 @@ keeping your own values from this table.
 | `.gitignore` | Usually identical; the template adds entries as new generated artifacts appear |
 | `.gitmodules` | Usually identical — check rather than assume |
 | `.vale.ini` | `BasedOnStyles`, `Vocab`, and any rule you have switched off; `StylesPath` and `Packages` are template-owned |
+| `.pre-commit-config.yaml` | Any `repo: local` hook of your own (a link checker, a naming gate); the shared hooks, their order, and their `rev` pins are template-owned |
 | `CONTRIBUTING.md` | Any task-group-specific contribution process; take the template's changes to the shared DCO and workflow text |
 | `GOVERNANCE.md` | The governing group, how to join it, and its mailing list — normally all of it |
 | `src/<your-spec>.adoc` | Your `include::` lines only; see below |

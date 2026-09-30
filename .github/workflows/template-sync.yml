@@ -140,7 +140,6 @@ jobs:
             .github/workflows/vale-linting.yml \
             .github/workflows/template-sync.yml \
             .github/dependabot.yml \
-            .pre-commit-config.yaml \
             docker-compose.yml \
             ANTORA.md \
             MIGRATION.md \
@@ -163,7 +162,7 @@ jobs:
           {
             echo 'checklist<<EOF'
             changed=false
-            for f in Makefile antora.yml antora-playbook.yml package.json README.adoc .gitignore .gitmodules .vale.ini CONTRIBUTING.md GOVERNANCE.md src/; do
+            for f in Makefile antora.yml antora-playbook.yml package.json README.adoc .gitignore .gitmodules .vale.ini .pre-commit-config.yaml CONTRIBUTING.md GOVERNANCE.md src/; do
               if ! git diff --quiet "$baseline" "$target" -- "$f" 2>/dev/null; then
                 echo "- [ ] \`$f\` changed upstream -- merge by hand per UPGRADING.md section 2.5/2.6"
                 changed=true
