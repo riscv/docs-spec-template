@@ -29,7 +29,7 @@ jobs:
     if: github.repository != 'riscv/docs-spec-template'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # See milestone-pr in version-bot.yml: create-pull-request adds its
@@ -190,7 +190,7 @@ jobs:
 
       - name: Create pull request
         if: steps.refs.outputs.skip == 'false'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
           commit-message: 'chore: sync template-owned files from docs-spec-template@${{ steps.refs.outputs.short_target }}'
