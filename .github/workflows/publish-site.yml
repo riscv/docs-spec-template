@@ -29,6 +29,17 @@ name: Publish site to GitHub Pages
 # workflow that survives the switch and can deploy AFTER the first Actions
 # deployment, overwriting the site with the repo root -- a live 404 from a run
 # that reported success. Re-run this workflow to recover; it does not recur.
+#
+# Second one-time step: allow release tags to deploy. Enabling Pages creates the
+# github-pages environment with a deployment policy that admits only main, so
+# the first hand-cut milestone tag (v0.6, v0.8, ...) is rejected at the deploy
+# step with 'Tag "v0.8" is not allowed to deploy to github-pages due to
+# environment protection rules'. A repository admin must add a tag rule for v*
+# under Settings -> Environments -> github-pages -> Deployment branches and
+# tags, or run:
+#   gh api -X POST repos/<org>/<repo>/environments/github-pages/deployment-branch-policies -f name='v*' -f type=tag
+# GITHUB_TOKEN cannot change environment settings, so the workflow cannot do
+# this itself. Re-run the failed publish after adding the rule.
 
 on:
   # Called by version-bot.yml immediately after a release tag is cut, so the

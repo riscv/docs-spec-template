@@ -588,6 +588,15 @@ else depends on it.
       run that reported success. Re-run `publish-site.yml` to recover.
       Pages also needs a public repo unless your org is on Team/Enterprise; the
       job skips itself on private repos rather than failing your release.
+- [ ] Allow release tags to deploy to Pages. Enabling Pages creates the
+      `github-pages` environment restricted to `main`, so the first milestone
+      tag (`v0.6`, `v0.8`, …) fails at the deploy step with `Tag "v0.8" is not
+      allowed to deploy to github-pages due to environment protection rules`.
+      Add a tag rule for `v*` under *Settings → Environments → github-pages →
+      Deployment branches and tags*, or with an admin token:
+      ```bash
+      gh api -X POST repos/<org>/<repo>/environments/github-pages/deployment-branch-policies -f name='v*' -f type=tag
+      ```
 - [ ] Verify locally before pushing (needs Kroki, as in Step 10):
       ```bash
       NO_STAMP=1 ./scripts/build-pages-site.sh   # -> build/pages-site/

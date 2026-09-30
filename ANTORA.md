@@ -156,6 +156,15 @@ this is the primary HTML output; for specs that *are* consumed centrally,
   `publish-site.yml` run that reported success; check the `github-pages`
   deployment list for a `pages-build-deployment` entry newer than yours. Re-run
   `publish-site.yml` once the stray build has finished; it does not recur.
+- **Allow release tags to deploy.** Enabling Pages creates the `github-pages`
+  environment with a deployment policy that admits only `main`, so the first
+  milestone tag cut by hand (`v0.6`, `v0.8`, …) is rejected at the deploy step:
+  `Tag "v0.8" is not allowed to deploy to github-pages due to environment
+  protection rules`. A repository admin must add a tag rule for `v*` under
+  *Settings → Environments → github-pages → Deployment branches and tags*, or
+  run `gh api -X POST repos/<org>/<repo>/environments/github-pages/deployment-branch-policies -f name='v*' -f type=tag`.
+  `GITHUB_TOKEN` cannot change environment settings, so the workflow cannot do
+  this itself. Re-run the failed `publish-site.yml` after adding the rule.
 
 ### How the playbook is derived
 
