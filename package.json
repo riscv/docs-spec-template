@@ -11,5 +11,8 @@
     "@antora/site-generator": "3.2.0",
     "@djencks/asciidoctor-mathjax": "0.0.9",
     "asciidoctor-kroki": "0.18.1"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.9.12"
   }
 }
