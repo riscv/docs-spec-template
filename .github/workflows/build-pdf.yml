@@ -50,7 +50,7 @@ jobs:
     steps:
       # Checkout the repository
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # When version-bot calls us, build the TAGGED commit, not whatever main
           # happens to point at by the time this job starts.
@@ -177,7 +177,7 @@ jobs:
       # submission artifact is the PDF, and the published HTML is the Antora site.
       - name: Upload Build Artifacts
         id: upload
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Build Artifacts
           path: |
@@ -212,7 +212,7 @@ jobs:
       # the only remaining axis is milestone vs interim. RELEASABLE, not the event
       # name, decides whether a release happens at all.
       - name: Create Release (Official)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ github.workspace }}/build/*.pdf
           tag_name: ${{ env.VERSION }}
@@ -224,7 +224,7 @@ jobs:
         if: env.RELEASABLE == 'true' && env.OFFICIAL_RELEASE == 'true'
 
       - name: Create Release (Pre-release)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ github.workspace }}/build/*.pdf
           tag_name: ${{ env.VERSION }}
@@ -271,7 +271,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout main
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -323,7 +323,7 @@ jobs:
 
       - name: Open site version stamp PR
         if: steps.stamp.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
           base: main

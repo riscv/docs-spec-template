@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Deliberately the built-in GITHUB_TOKEN, even when GHTOKEN exists.
@@ -264,7 +264,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # See build-pdf.yml: create-pull-request adds its own auth header, so a
@@ -277,7 +277,7 @@ jobs:
           ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
 
       - name: Create milestone review PR
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
           # The DCO check that RISC-V spec repos run requires a Signed-off-by
