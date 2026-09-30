@@ -678,6 +678,11 @@ earlier.
       create and approve pull requests* setting.
 - [ ] Run it once from *Actions → Template Sync → Run workflow*, rather than
       waiting for the Monday schedule.
+- [ ] While you are in *Actions*, run **Repository Setup** too. It applies the
+      repository settings this guide asks for by hand — the Pages source, the
+      `v*` tag rule, and Dependabot alerts and security updates — and reports
+      anything it could not apply. Those settings are invisible to a pull
+      request, so they are the easiest part of a migration to leave half-done.
 - [ ] Review the bootstrap PR. With no `.template-version` yet, the baseline is
       `template/main`, so this first PR copies **every** template-owned file and
       is larger than every later one. Expect it to add the template's reference
