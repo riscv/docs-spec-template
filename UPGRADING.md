@@ -618,6 +618,7 @@ tests/release-info-test.sh
 .github/workflows/pre-commit.yml
 .github/workflows/vale-linting.yml
 .github/workflows/template-sync.yml
+.github/workflows/repo-setup.yml
 .github/dependabot.yml
 docker-compose.yml
 ANTORA.md

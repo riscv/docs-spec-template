@@ -33,7 +33,9 @@ The governance for this project is defined in the link:GOVERNANCE.md[GOVERNANCE]
 
 == Repository Setup Checklist
 
-When instantiating a new repository from this template, perform these one-time setup steps:
+When instantiating a new repository from this template, perform these one-time setup steps.
+
+TIP: Steps 3, 4 and 5 can be applied in one go by running the *Repository Setup* workflow (*Actions* -> *Repository Setup* -> *Run workflow*), which sets the Pages source, adds the `v*` tag rule and enables Dependabot alerts and security updates. It needs `GHTOKEN` to carry repo admin -- more than `template-sync.yml` needs -- and reports each setting it could not apply, so the manual instructions below remain the fallback. It is safe to re-run, and reads the current state first, so it doubles as a way to audit these settings later.
 
 1. **Enable Actions PR Creation**:
    Go to *Settings* -> *Actions* -> *General* -> Scroll to *Workflow permissions* -> Check *Allow GitHub Actions to create and approve pull requests* -> Click *Save*.
