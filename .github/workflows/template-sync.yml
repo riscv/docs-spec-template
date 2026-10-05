@@ -117,10 +117,6 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Create branch
-        if: steps.refs.outputs.skip == 'false'
-        run: git switch -c "gitbot/template-sync-${{ steps.refs.outputs.short_target }}"
-
       # Template-owned files: no per-repository content, safe to overwrite.
       # Kept in sync by hand with the list in UPGRADING.md, "Template-owned".
       - name: Copy template-owned files
