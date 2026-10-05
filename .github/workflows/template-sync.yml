@@ -217,7 +217,18 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: sync template-owned files from docs-spec-template@${{ steps.refs.outputs.short_target }}'
+          # Same reason as milestone-pr in version-bot.yml: the DCO check that
+          # RISC-V spec repos run requires a Signed-off-by matching the
+          # commit's author. create-pull-request authors the commit as the user
+          # who triggered this workflow and adds no trailer of its own, so the
+          # sync PR is blocked until someone amends it. Sign off as that same
+          # user. (The action's own `signoff: true` is no use here -- it signs
+          # as the *committer*, which defaults to github-actions[bot] and so
+          # would not match the author.)
+          commit-message: |
+            chore: sync template-owned files from docs-spec-template@${{ steps.refs.outputs.short_target }}
+
+            Signed-off-by: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           branch: gitbot/template-sync-${{ steps.refs.outputs.short_target }}
           delete-branch: true
           title: 'Template sync: pick up docs-spec-template changes (${{ steps.refs.outputs.short_target }})'
