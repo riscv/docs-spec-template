@@ -56,7 +56,12 @@ jobs:
         run: |
           set -euo pipefail
           git remote add template https://github.com/riscv/docs-spec-template.git
-          git fetch template main
+          # Fully-qualified refspec, not the bare name "main": a tag of the
+          # same name anywhere in this repository would otherwise win the
+          # ambiguity, and `git fetch template main` would resolve to the tag
+          # and write only FETCH_HEAD -- leaving no refs/remotes/template/main
+          # for the next step's `git rev-parse template/main` to resolve.
+          git fetch template '+refs/heads/main:refs/remotes/template/main'
 
       - name: Determine baseline and target
         id: refs
