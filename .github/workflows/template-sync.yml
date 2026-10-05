@@ -164,18 +164,40 @@ jobs:
           set -euo pipefail
           baseline="${{ steps.refs.outputs.baseline }}"
           target="${{ steps.refs.outputs.target }}"
+          bootstrap="${{ steps.refs.outputs.bootstrap }}"
+
+          # A bootstrap run has no real baseline -- the step above set it to
+          # target -- so diffing baseline..target compares a commit with
+          # itself, finds nothing, and the checklist below reports "no shared
+          # files changed" on precisely the run where the manual merge burden
+          # is largest. Diff this repository's own tree against the template
+          # instead, which is the question a first sync should answer: how far
+          # has this repo drifted from the template it was created from?
+          #
+          # HEAD is still the pre-sync commit here: the Create branch step
+          # only switched branches, and the copy step staged its files without
+          # committing, so this compares the repository as it stands today.
+          if [[ "$bootstrap" == "true" ]]; then
+            base="HEAD"
+            verb="differs from the template"
+            none="- No shared files differ from the template."
+          else
+            base="$baseline"
+            verb="changed upstream"
+            none="- No shared files changed upstream in this range."
+          fi
 
           {
             echo 'checklist<<EOF'
             changed=false
             for f in Makefile antora.yml antora-playbook.yml package.json README.adoc .gitignore .gitmodules .vale.ini .pre-commit-config.yaml CONTRIBUTING.md GOVERNANCE.md src/; do
-              if ! git diff --quiet "$baseline" "$target" -- "$f" 2>/dev/null; then
-                echo "- [ ] \`$f\` changed upstream -- merge by hand per UPGRADING.md section 2.5/2.6"
+              if ! git diff --quiet "$base" "$target" -- "$f" 2>/dev/null; then
+                echo "- [ ] \`$f\` $verb -- merge by hand per UPGRADING.md section 2.5/2.6"
                 changed=true
               fi
             done
             if [[ "$changed" == "false" ]]; then
-              echo "- No shared files changed upstream in this range."
+              echo "$none"
             fi
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
