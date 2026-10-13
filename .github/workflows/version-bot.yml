@@ -162,15 +162,40 @@ jobs:
           # time is then wiped by the next push to main, which rebuilds the whole
           # site without it. See build-pages-site.sh, step 3.
           #
-          # Pushing to main can be refused (branch protection, or main moved
-          # since checkout). That must not fail the release, so on refusal we
-          # drop the stamp and leave it to build-pdf.yml's stamp-site-version
-          # job, which opens a PR as before -- the site version then lags until
-          # that PR merges, exactly as it did previously.
+          # Pushing to main can be refused: branch protection, or main moved
+          # since checkout, or -- the normal case in the riscv organization -- a
+          # ruleset requiring signed commits and a passing DCO check, which a
+          # bot's direct push can never satisfy. That must not fail the release.
+          # On refusal we KEEP the stamp commit and tag it anyway, pushing only
+          # the tag: rulesets and branch protection apply to branches, so the
+          # tag still lands, and it still carries a descriptor naming its own
+          # version. The stamp commit then lives only on the tag, not on main;
+          # build-pdf.yml's stamp-site-version job opens a PR to bring the same
+          # stamp onto main. Until that merges, main builds as `dev` as usual,
+          # and the release keeps its own /<component>/<version>/ path.
           git config user.name "riscv-gitbot"
           git config user.email "actions@users.noreply.github.com"
+
+          # A rerun for a version that is already tagged (say, after its build
+          # failed) reuses the tag rather than stamping again. Accept the tag
+          # when it is HEAD itself or the stamp commit made on top of HEAD by an
+          # earlier run whose push to main was refused; anything else means the
+          # version was cut from different content.
+          tag_exists=false
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            tag_sha="$(git rev-list -n1 "$next")"
+            head_sha="$(git rev-parse HEAD)"
+            tag_parent="$(git rev-parse -q --verify "$tag_sha^" || true)"
+            if [[ "$tag_sha" != "$head_sha" && "$tag_parent" != "$head_sha" ]]; then
+              echo "Tag $next already exists on another commit ($tag_sha)." >&2
+              exit 1
+            fi
+            echo "Tag $next already exists for HEAD ($tag_sha); reusing."
+            tag_exists=true
+          fi
+
           stamp_committed=false
-          if [[ "$REF_NAME" == "main" ]]; then
+          if [[ "$tag_exists" == "false" && "$REF_NAME" == "main" ]]; then
             ./scripts/stamp-antora-version.sh "$next" "$(date +%Y-%m-%d)"
             if git diff --quiet -- antora.yml; then
               echo "antora.yml already names $next; nothing to stamp."
@@ -184,22 +209,13 @@ jobs:
                 stamp_committed=true
                 echo "Stamped antora.yml to $next on $REF_NAME before tagging."
               else
-                echo "::warning::Could not push the antora.yml stamp to $REF_NAME; leaving it to the stamp PR. The site keeps the previous version until that PR merges."
-                git reset -q --hard "origin/$REF_NAME"
+                echo "::notice::Could not push the antora.yml stamp to $REF_NAME; tagging the stamp commit instead, so $next still carries its own version. The stamp PR brings the same change onto $REF_NAME."
               fi
             fi
           fi
           echo "stamp_committed=$stamp_committed" >> "$GITHUB_OUTPUT"
 
-          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
-            tag_sha="$(git rev-list -n1 "$next")"
-            head_sha="$(git rev-parse HEAD)"
-            if [[ "$tag_sha" != "$head_sha" ]]; then
-              echo "Tag $next already exists on another commit ($tag_sha)." >&2
-              exit 1
-            fi
-            echo "Tag $next already exists on HEAD; reusing."
-          else
+          if [[ "$tag_exists" == "false" ]]; then
             git tag -a "$next" -m "Automated version tag for $(git rev-parse HEAD)"
             git push origin "$next"
           fi

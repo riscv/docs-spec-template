@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Keep the version stamp on the release tag when `main` refuses the bot's
+  push. The `riscv` organization ruleset requires signed commits and a passing
+  DCO check on the default branch, so `version-bot.yml`'s pre-tag push of the
+  `antora.yml` stamp is refused in every `riscv` repository. The bot used to
+  discard the stamp and tag the unstamped commit, so the release's versioned
+  site path was dropped by the next push to `main`. It now tags the stamp
+  commit and pushes only the tag, which the ruleset does not cover. A rerun
+  for an already-tagged version reuses the tag instead of failing.
 - Stop `template-sync.yml` from overwriting `GOVERNANCE.md`. The template's copy
   is a placeholder every task group rewrites, and `UPGRADING.md` already said to
   treat an amended copy as a shared file, but the workflow copied it
