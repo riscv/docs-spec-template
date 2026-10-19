@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Sign bot commits so their PRs can merge where `main` requires signed commits.
+  `template-sync.yml`, `version-bot.yml` (milestone PR) and `build-pdf.yml`
+  (site version stamp PR) pushed with `GHTOKEN`, a personal access token, which
+  `create-pull-request` cannot sign, so under the `riscv` organization's ruleset
+  every bot PR was blocked even with DCO passing. When a GitHub App is configured
+  (`TEMPLATE_SYNC_APP_CLIENT_ID` and `TEMPLATE_SYNC_PRIVATE_KEY` secrets), each workflow
+  now mints its token and passes `sign-commits: true`; otherwise it falls back
+  to `GHTOKEN` as before. See README.adoc, "Signed commits: use a GitHub App".
 - Keep the version stamp on the release tag when `main` refuses the bot's
   push. The `riscv` organization ruleset requires signed commits and a passing
   DCO check on the default branch, so `version-bot.yml`'s pre-tag push of the

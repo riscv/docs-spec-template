@@ -27,6 +27,12 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     if: github.repository != 'riscv/docs-spec-template'
+    # `secrets` cannot be read from a step's `if:` -- GitHub's context
+    # availability table allows it in `env`, `with` and `run`, but not in
+    # `jobs.<id>.steps.if`. It IS allowed in `jobs.<id>.env`, so hoist the
+    # "is an App configured?" test to the job and let the gate read `env`.
+    env:
+      HAS_APP: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -42,7 +48,9 @@ jobs:
           GHTOKEN: ${{ secrets.GHTOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "$GHTOKEN" ]]; then
+          if [[ "$HAS_APP" == "true" ]]; then
+            echo "Using the GitHub App token (TEMPLATE_SYNC_APP_CLIENT_ID); commits will be signed."
+          elif [[ -z "$GHTOKEN" ]]; then
             # Unlike milestone-pr in version-bot.yml, this is not just a
             # "checks stall" warning: GITHUB_TOKEN is hard-blocked by GitHub
             # from pushing any change under .github/workflows/, which this
@@ -50,6 +58,8 @@ jobs:
             # `workflow` scope) the create-pull-request step below will fail
             # outright.
             echo "::warning::GHTOKEN is not set. This workflow updates files under .github/workflows/, and GITHUB_TOKEN cannot push those -- the pull request step below will fail. Set a GHTOKEN repository secret (a PAT with the 'workflow' scope). See README.adoc, 'Recommended repository secret'."
+          else
+            echo "::warning::No GitHub App configured (TEMPLATE_SYNC_APP_CLIENT_ID), so the sync commit will be pushed with GHTOKEN and will not be signed. If main requires signed commits, the PR cannot merge until a maintainer re-signs it. See README.adoc, 'Recommended repository secret'."
           fi
 
       - name: Add template remote
@@ -212,11 +222,26 @@ jobs:
           EOF
           git add .template-version
 
+      # See README.adoc, 'Recommended repository secret'. create-pull-request
+      # signs commits (sign-commits) only with a bot token -- with a PAT such as
+      # GHTOKEN it pushes them unsigned, which a "require signed commits" rule
+      # on main blocks. An App token lets GitHub sign them as the App's bot.
+      - name: Mint GitHub App token
+        id: app-token
+        if: steps.refs.outputs.skip == 'false' && env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TEMPLATE_SYNC_PRIVATE_KEY }}
+
       - name: Create pull request
         if: steps.refs.outputs.skip == 'false'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          # With an App token the commit is authored by the App's bot, which the
+          # DCO check skips; the trailer below then only records who ran it.
+          sign-commits: ${{ steps.app-token.outputs.token != '' }}
           # Same reason as milestone-pr in version-bot.yml: the DCO check that
           # RISC-V spec repos run requires a Signed-off-by matching the
           # commit's author. create-pull-request authors the commit as the user

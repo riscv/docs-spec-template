@@ -277,6 +277,12 @@ jobs:
     # meaningless for a doc-mode repo, which has no milestones. See
     # scripts/release-info.sh's .docmode / "mode" output above.
     if: needs.tag-version.outputs.milestone_transition == 'true' && needs.tag-version.outputs.mode == 'spec'
+    # `secrets` cannot be read from a step's `if:` -- GitHub's context
+    # availability table allows it in `env`, `with` and `run`, but not in
+    # `jobs.<id>.steps.if`. It IS allowed in `jobs.<id>.env`, so hoist the
+    # "is an App configured?" test to the job and let the gate read `env`.
+    env:
+      HAS_APP: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID != '' }}
 
     steps:
       - name: Checkout repository
@@ -292,10 +298,20 @@ jobs:
           set -euo pipefail
           ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
 
+      # Signed commits -- see the matching step in template-sync.yml.
+      - name: Mint GitHub App token
+        id: app-token
+        if: env.HAS_APP == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TEMPLATE_SYNC_PRIVATE_KEY }}
+
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          sign-commits: ${{ steps.app-token.outputs.token != '' }}
           # The DCO check that RISC-V spec repos run requires a Signed-off-by
           # matching the commit's author. create-pull-request authors the commit
           # as the user who dispatched this workflow and adds no trailer, so the
