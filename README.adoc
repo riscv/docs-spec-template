@@ -264,13 +264,18 @@ To have GitHub sign them, configure a GitHub App. The three workflows that open
 PRs mint a token for it per run with `actions/create-github-app-token` and pass
 `sign-commits: true`; when it is not configured they fall back to `GHTOKEN`.
 
-* *Variable* `BOT_APP_CLIENT_ID`: the App's client ID.
-* *Secret* `BOT_APP_PRIVATE_KEY`: a private key generated for the App.
+* *Secret* `TEMPLATE_SYNC_APP_CLIENT_ID`: the App's client ID.
+* *Secret* `TEMPLATE_SYNC_PRIVATE_KEY`: a private key generated for the App.
 * App permissions: `Contents`, `Pull requests` and `Workflows`, all read and write. Install it on each repository.
 
 Both can be set at the organization level. Commits are then authored by the
 App's bot, which the DCO check skips. An App is also not tied to one person's
 account, and its tokens don't need rotating by hand.
+
+The client ID is not sensitive, but it is stored as a secret rather than a
+variable so that both values live in one place. Because `secrets` cannot be
+read from a step's `if:`, each job hoists the "is an App configured?" test into
+a job-level `env` (`HAS_APP`) that the gate reads instead.
 
 === Manual builds
 

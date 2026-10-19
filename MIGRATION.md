@@ -685,8 +685,9 @@ earlier.
       `GITHUB_TOKEN` cannot push regardless of the *Allow GitHub Actions to
       create and approve pull requests* setting.
 - [ ] If `main` requires signed commits (the `riscv` organization's ruleset
-      does), confirm the `BOT_APP_CLIENT_ID` variable and `BOT_APP_PRIVATE_KEY`
-      secret are visible and the App is installed on the repository. Without
+      does), confirm the `TEMPLATE_SYNC_APP_CLIENT_ID` and
+      `TEMPLATE_SYNC_PRIVATE_KEY` secrets are visible and the App is installed
+      on the repository. Without
       them the sync commit is pushed with `GHTOKEN` unsigned, and the PR is
       blocked until someone re-signs it. See README.adoc, *Signed commits: use a
       GitHub App*.

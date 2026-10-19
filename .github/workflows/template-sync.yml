@@ -27,6 +27,12 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     if: github.repository != 'riscv/docs-spec-template'
+    # `secrets` cannot be read from a step's `if:` -- GitHub's context
+    # availability table allows it in `env`, `with` and `run`, but not in
+    # `jobs.<id>.steps.if`. It IS allowed in `jobs.<id>.env`, so hoist the
+    # "is an App configured?" test to the job and let the gate read `env`.
+    env:
+      HAS_APP: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -40,11 +46,10 @@ jobs:
       - name: Check for bot token
         env:
           GHTOKEN: ${{ secrets.GHTOKEN }}
-          HAS_APP: ${{ vars.BOT_APP_CLIENT_ID != '' }}
         run: |
           set -euo pipefail
           if [[ "$HAS_APP" == "true" ]]; then
-            echo "Using the GitHub App token (BOT_APP_CLIENT_ID); commits will be signed."
+            echo "Using the GitHub App token (TEMPLATE_SYNC_APP_CLIENT_ID); commits will be signed."
           elif [[ -z "$GHTOKEN" ]]; then
             # Unlike milestone-pr in version-bot.yml, this is not just a
             # "checks stall" warning: GITHUB_TOKEN is hard-blocked by GitHub
@@ -54,7 +59,7 @@ jobs:
             # outright.
             echo "::warning::GHTOKEN is not set. This workflow updates files under .github/workflows/, and GITHUB_TOKEN cannot push those -- the pull request step below will fail. Set a GHTOKEN repository secret (a PAT with the 'workflow' scope). See README.adoc, 'Recommended repository secret'."
           else
-            echo "::warning::No GitHub App configured (BOT_APP_CLIENT_ID), so the sync commit will be pushed with GHTOKEN and will not be signed. If main requires signed commits, the PR cannot merge until a maintainer re-signs it. See README.adoc, 'Recommended repository secret'."
+            echo "::warning::No GitHub App configured (TEMPLATE_SYNC_APP_CLIENT_ID), so the sync commit will be pushed with GHTOKEN and will not be signed. If main requires signed commits, the PR cannot merge until a maintainer re-signs it. See README.adoc, 'Recommended repository secret'."
           fi
 
       - name: Add template remote
@@ -223,11 +228,11 @@ jobs:
       # on main blocks. An App token lets GitHub sign them as the App's bot.
       - name: Mint GitHub App token
         id: app-token
-        if: steps.refs.outputs.skip == 'false' && vars.BOT_APP_CLIENT_ID != ''
+        if: steps.refs.outputs.skip == 'false' && env.HAS_APP == 'true'
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
-          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          client-id: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TEMPLATE_SYNC_PRIVATE_KEY }}
 
       - name: Create pull request
         if: steps.refs.outputs.skip == 'false'

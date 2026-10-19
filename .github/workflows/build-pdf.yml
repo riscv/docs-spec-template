@@ -269,6 +269,12 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    # `secrets` cannot be read from a step's `if:` -- GitHub's context
+    # availability table allows it in `env`, `with` and `run`, but not in
+    # `jobs.<id>.steps.if`. It IS allowed in `jobs.<id>.env`, so hoist the
+    # "is an App configured?" test to the job and let the gate read `env`.
+    env:
+      HAS_APP: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID != '' }}
     steps:
       - name: Checkout main
         uses: actions/checkout@v7
@@ -324,11 +330,11 @@ jobs:
       # Signed commits -- see the matching step in template-sync.yml.
       - name: Mint GitHub App token
         id: app-token
-        if: steps.stamp.outputs.changed == 'true' && vars.BOT_APP_CLIENT_ID != ''
+        if: steps.stamp.outputs.changed == 'true' && env.HAS_APP == 'true'
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
-          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          client-id: ${{ secrets.TEMPLATE_SYNC_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TEMPLATE_SYNC_PRIVATE_KEY }}
 
       - name: Open site version stamp PR
         if: steps.stamp.outputs.changed == 'true'
