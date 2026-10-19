@@ -249,10 +249,28 @@ PDF build, `pre-commit`, Vale, and the Antora content-source validation -- is
 created in the `action_required` state and waits for a maintainer to press
 "Approve and run". The PR itself is still correct; only its checks stall.
 
-`GHTOKEN` may be either:
+`GHTOKEN` is a fine-grained personal access token scoped to the repository with `Contents: read and write`, `Pull requests: read and write`, and `Workflows: read and write`. It is tied to one person's account and expires.
 
-* A fine-grained personal access token scoped to the repository with `Contents: read and write`, `Pull requests: read and write`, and `Workflows: read and write`. Simplest to set up; tied to one person's account and expires.
-* A GitHub App installation token minted per run with `actions/create-github-app-token`. Preferred for repositories with more than one maintainer, since it is not tied to an individual.
+==== Signed commits: use a GitHub App
+
+Commits pushed with `GHTOKEN` are *not signed*. If `main` requires signed
+commits (the `riscv` organization's ruleset does), every bot PR -- template
+sync, milestone, site version stamp -- is blocked with "Commits must have
+verified signatures" even though DCO passes, until a maintainer re-signs the
+commit by hand. `create-pull-request` signs commits only with a bot token, never
+with a personal access token.
+
+To have GitHub sign them, configure a GitHub App. The three workflows that open
+PRs mint a token for it per run with `actions/create-github-app-token` and pass
+`sign-commits: true`; when it is not configured they fall back to `GHTOKEN`.
+
+* *Variable* `BOT_APP_CLIENT_ID`: the App's client ID.
+* *Secret* `BOT_APP_PRIVATE_KEY`: a private key generated for the App.
+* App permissions: `Contents`, `Pull requests` and `Workflows`, all read and write. Install it on each repository.
+
+Both can be set at the organization level. Commits are then authored by the
+App's bot, which the DCO check skips. An App is also not tied to one person's
+account, and its tokens don't need rotating by hand.
 
 === Manual builds
 

@@ -321,11 +321,21 @@ jobs:
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
+      # Signed commits -- see the matching step in template-sync.yml.
+      - name: Mint GitHub App token
+        id: app-token
+        if: steps.stamp.outputs.changed == 'true' && vars.BOT_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+
       - name: Open site version stamp PR
         if: steps.stamp.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          sign-commits: ${{ steps.app-token.outputs.token != '' }}
           base: main
           # Signed off as the dispatching user, for the DCO check -- see the
           # matching note in version-bot.yml's milestone PR step.

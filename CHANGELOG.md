@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Sign bot commits so their PRs can merge where `main` requires signed commits.
+  `template-sync.yml`, `version-bot.yml` (milestone PR) and `build-pdf.yml`
+  (site version stamp PR) pushed with `GHTOKEN`, a personal access token, which
+  `create-pull-request` cannot sign, so under the `riscv` organization's ruleset
+  every bot PR was blocked even with DCO passing. When a GitHub App is configured
+  (`BOT_APP_CLIENT_ID` variable, `BOT_APP_PRIVATE_KEY` secret), each workflow
+  now mints its token and passes `sign-commits: true`; otherwise it falls back
+  to `GHTOKEN` as before. See README.adoc, "Signed commits: use a GitHub App".
 - Stop `template-sync.yml` from overwriting `GOVERNANCE.md`. The template's copy
   is a placeholder every task group rewrites, and `UPGRADING.md` already said to
   treat an amended copy as a shared file, but the workflow copied it

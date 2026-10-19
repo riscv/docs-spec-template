@@ -276,10 +276,20 @@ jobs:
           set -euo pipefail
           ./scripts/update-spec-state.sh "${{ needs.tag-version.outputs.next_version }}" "$(date +%Y-%m-%d)"
 
+      # Signed commits -- see the matching step in template-sync.yml.
+      - name: Mint GitHub App token
+        id: app-token
+        if: vars.BOT_APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.BOT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+
       - name: Create milestone review PR
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GHTOKEN || secrets.GITHUB_TOKEN }}
+          sign-commits: ${{ steps.app-token.outputs.token != '' }}
           # The DCO check that RISC-V spec repos run requires a Signed-off-by
           # matching the commit's author. create-pull-request authors the commit
           # as the user who dispatched this workflow and adds no trailer, so the
