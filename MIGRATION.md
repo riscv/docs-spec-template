@@ -494,13 +494,19 @@ file.
       naming its own version. That is what lets the Pages build publish the
       release under `/<component>/<version>/` and keep it there: a tag stamped
       afterwards never qualifies (see `scripts/build-pages-site.sh`, step 3), so
-      the next push to `main` rebuilds the site without it.
-- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job too. It is now
-      the **fallback**: if the pre-tag push is refused — branch protection, or
-      `main` moved since checkout — it opens a review PR titled
-      `Stamp Antora site version vX.Y to match released PDF`, which you merge to
-      bring the site version back in line. It is monotonic, and it skips
-      silently when `main` is already stamped, which is the normal case.
+      the next push to `main` rebuilds the site without it. If `main` refuses
+      the push, the bot tags the stamp commit instead and pushes only the tag,
+      so the tag carries its own version either way.
+- [ ] Sync the upstream `build-pdf.yml` `stamp-site-version` job too. It is the
+      **fallback** for when the pre-tag push is refused — branch protection,
+      `main` moved since checkout, or, in every `riscv` repository, the
+      organization ruleset that requires signed commits and a passing DCO check
+      on the default branch, which a bot's direct push never satisfies. It opens
+      a review PR titled `Stamp Antora site version vX.Y to match released PDF`
+      that brings the stamp onto `main`. Its commit is the bot's and unsigned, so
+      merge it with **Squash and merge**: GitHub signs the squash commit, while a
+      merge commit would be refused. It is monotonic, and it skips silently when
+      `main` is already stamped.
 - [ ] Verify:
       ```bash
       make stamp-antora VERSION=v0.8 DATE=2026-06-12
@@ -607,12 +613,13 @@ else depends on it.
       `v<latest>-<hash>-<date>` path — that is deliberate, and the exact commit
       is still shown on the cover page.
 
-> **One version, not a dropdown.** The build publishes the checked-out ref, plus
-> any release tag whose `antora.yml` names that same tag. Under the standard
-> release flow the tag is cut *before* the stamp PR from Step 12 merges, so no
-> tag carries its own version and exactly one version is published. Tags that
-> predate your Antora migration are skipped with a reason rather than aborting
-> the build — Antora fails hard on any ref lacking `antora.yml`.
+> **Which versions are published.** The build publishes the checked-out ref, plus
+> any release tag whose `antora.yml` names that same tag. The version bot stamps
+> before it tags (Step 12), so every release cut by the bot qualifies and the
+> site grows a version per release. Tags cut before that — including any cut by
+> an older `version-bot.yml` whose stamp push was refused — name some other
+> version and are skipped with a reason, as are tags that predate your Antora
+> migration (Antora fails hard on any ref lacking `antora.yml`).
 
 ---
 
@@ -629,10 +636,11 @@ When you're ready to advance to the next milestone:
       ARC convention.
 - [ ] **If the release opened a site version stamp PR**
       (`Stamp Antora site version vX.Y to match released PDF`), review and merge
-      it. Normally there is none: the release stamps `antora.yml` on `main`
-      before tagging, and the PR appears only when that push was refused. Until
-      it merges, the site version lags the released PDF, and the release has no
-      versioned path of its own. The values are generated from
+      it with **Squash and merge**. It appears whenever the bot's push to `main`
+      was refused, which in `riscv` repositories is every release. The release
+      itself is unaffected — the tag already carries the stamp, so the site
+      publishes it under its own versioned path — but until the PR merges, `main`
+      still names the previous version. The values are generated from
       `release-info.sh`, so this wants a merge, not an edit.
 - [ ] After it merges, confirm the site renders at `/<component>/<version>/` with
       a cover reading `Version vX.Y, YYYY-MM-DD: <Display>` — identical to the
