@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Have `repo-setup.yml` enable *Automatically delete head branches*, and add it
+  to the Repository Setup Checklist as step 6. Three workflows open their PRs
+  from a `gitbot/*` branch, and `create-pull-request`'s `delete-branch: true`
+  only deletes those when a PR is closed **unmerged** -- deletion on merge is a
+  repository setting that is off by default and that no workflow was setting. So
+  every merged bot PR left its branch behind for good:
+  `riscv-high-assurance-cryptography` had five stale `gitbot/*` branches, and the
+  setting was `false` in all five repositories on the template, including this
+  one.
 - Sign bot commits so their PRs can merge where `main` requires signed commits.
   `template-sync.yml`, `version-bot.yml` (milestone PR) and `build-pdf.yml`
   (site version stamp PR) pushed with `GHTOKEN`, a personal access token, which
