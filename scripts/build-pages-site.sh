@@ -152,9 +152,12 @@ done < <(git tag --list "$tag_glob" --sort=-version:refname)
 
 echo "==> Publishing versions: ${head_version:-HEAD} ${tag_list[*]:-}"
 if [ ${#tag_list[@]} -gt 0 ]; then
+  # `branches: []` is required: a source that omits `branches` gets Antora's
+  # default of [HEAD, v{0..9}*], which pulls the worktree in a second time
+  # alongside the HEAD source below and aborts the build ("Duplicate nav file").
   tags_json="$(printf '%s\n' "${tag_list[@]}" | node -e '
     const tags = require("fs").readFileSync(0, "utf8").split("\n").filter(Boolean);
-    process.stdout.write(JSON.stringify({ url: ".", tags }));
+    process.stdout.write(JSON.stringify({ url: ".", branches: [], tags }));
   ')"
   sources+=(--source "$tags_json")
 fi
