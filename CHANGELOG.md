@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **_NOTE:_** PROJECTS BUILT USING THE TEMPLATE SHOULD UPDATE THE BELOW SECTIONS AS-NEEDED.
 
 ## [Unreleased]
+- Fail a PR or push that moves the `docs-resources` submodule backwards. A
+  new `docs-resources-pointer` job in `validate-content-source.yml` compares the
+  new pin with the previous one through the GitHub compare API and fails unless
+  the new pin is ahead of it. A content commit made with a stale local
+  submodule checkout (`git commit -a`) stages a downgrade of the pointer, and
+  `validate` then dies on a missing `antora-extensions/` file without saying
+  that the pointer moved. `riscv-high-assurance-cryptography` had the pointer
+  reverted three times in five days this way. Dependabot and template-sync bumps
+  move the pin forward and pass. No new file, so no change to the template-owned
+  list in UPGRADING.md or to `template-sync.yml`.
 - Have `repo-setup.yml` enable *Automatically delete head branches*, and add it
   to the Repository Setup Checklist as step 6. Three workflows open their PRs
   from a `gitbot/*` branch, and `create-pull-request`'s `delete-branch: true`
