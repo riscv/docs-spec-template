@@ -84,19 +84,32 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+# Two jobs, build and deploy, on purpose. When deploy-pages runs in the same job
+# straight after upload-pages-artifact, its one artifact lookup can come back
+# empty although the upload has just been confirmed ("No artifacts named
+# github-pages were found"). This is a GitHub-side race; see
+# actions/deploy-pages#451. Starting a second job puts tens of seconds between
+# the upload and the lookup. It also lets "Re-run failed jobs" re-run only the
+# deploy, against the artifact that already exists.
 jobs:
-  publish:
+  build:
     # GitHub Pages is not available on private repositories outside GitHub Team
     # and Enterprise Cloud. A template consumer working in a private repo should
     # skip cleanly rather than see a failed release run; on Team/Enterprise,
-    # delete this condition to publish privately.
+    # delete this condition to publish privately. The deploy job needs this
+    # one, so it is skipped too.
     if: ${{ !github.event.repository.private }}
 
     runs-on: ubuntu-latest
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    # The artifact name carries the run attempt, and deploy reads it from here.
+    # A re-run keeps earlier attempts' artifacts, and deploy-pages refuses to
+    # choose between two with the same name ("Multiple artifacts named
+    # github-pages"). "Re-run all jobs" uploads a new artifact under a new name.
+    # "Re-run failed jobs" keeps this job's output from the attempt that
+    # uploaded, so a deploy-only re-run still finds the existing artifact.
+    outputs:
+      artifact: ${{ steps.artifact.outputs.name }}
 
     # Local Kroki server for asciidoctor-kroki (wavedrom etc.). Matches the
     # kroki-server-url: http://localhost:9870 attribute in antora-playbook.yml,
@@ -191,20 +204,27 @@ jobs:
           DATE: ${{ steps.release.outputs.date }}
         run: ./scripts/build-pages-site.sh "${{ steps.pages.outputs.base_url }}"
 
-      # The artifact name carries the run attempt. A re-run keeps the earlier
-      # attempts' artifacts on the run, and deploy-pages refuses to choose
-      # between two artifacts with the same name ("Multiple artifacts named
-      # github-pages"). So with the default name, "Re-run failed jobs" could
-      # never recover a failed deploy. With a name per attempt, each deploy
-      # finds only its own upload.
+      - name: Name the Pages artifact
+        id: artifact
+        run: echo "name=github-pages-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/pages-site
-          name: github-pages-${{ github.run_attempt }}
+          name: ${{ steps.artifact.outputs.name }}
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v5
         with:
-          artifact_name: github-pages-${{ github.run_attempt }}
+          artifact_name: ${{ needs.build.outputs.artifact }}
