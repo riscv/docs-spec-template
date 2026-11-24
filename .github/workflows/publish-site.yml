@@ -191,11 +191,20 @@ jobs:
           DATE: ${{ steps.release.outputs.date }}
         run: ./scripts/build-pages-site.sh "${{ steps.pages.outputs.base_url }}"
 
+      # The artifact name carries the run attempt. A re-run keeps the earlier
+      # attempts' artifacts on the run, and deploy-pages refuses to choose
+      # between two artifacts with the same name ("Multiple artifacts named
+      # github-pages"). So with the default name, "Re-run failed jobs" could
+      # never recover a failed deploy. With a name per attempt, each deploy
+      # finds only its own upload.
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: build/pages-site
+          name: github-pages-${{ github.run_attempt }}
 
       - name: Deploy to GitHub Pages
         id: deploy
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
